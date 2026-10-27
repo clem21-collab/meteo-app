@@ -22,6 +22,11 @@ function json(data, status, request, env) {
   });
 }
 
+function clamp(value, min, max, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fallback;
+}
+
 function configureWebPush(env) {
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) {
     throw new Error("VAPID keys are missing");
@@ -69,31 +74,34 @@ async function storeSubscription(request, env) {
     city: String(body.city || "Ma position").slice(0, 120),
     settings: {
       rain: body.settings?.rain !== false,
-      rainThreshold: Number(body.settings?.rainThreshold || 70),
+      rainThreshold: clamp(body.settings?.rainThreshold, 20, 100, 70),
       wind: body.settings?.wind !== false,
-      windThreshold: Number(body.settings?.windThreshold || 60),
+      windThreshold: clamp(body.settings?.windThreshold, 30, 150, 60),
       snow: body.settings?.snow !== false,
       storm: body.settings?.storm !== false,
+      leadHours: clamp(body.settings?.leadHours, 1, 12, 2),
     },
     updatedAt: Date.now(),
   };
 
   await env.PUSH_KV.put(SUB_KEY, JSON.stringify(record));
 
-  try {
-    await sendPush(env, record, {
-      title: "✅ Alertes météo activées",
-      body: `Les notifications automatiques sont actives pour ${record.city}.`,
-      urgency: "normal",
-      tag: "meteo-subscription-ready",
-      data: { url: `${env.APP_URL}?tab=alerts`, type: "ready" },
-      icon: `${env.APP_URL}icon.svg`,
-    });
-  } catch (error) {
-    console.error("Welcome push failed", error);
+  if (body.confirm !== false) {
+    try {
+      await sendPush(env, record, {
+        title: "✅ Alertes météo activées",
+        body: `Les notifications automatiques sont actives pour ${record.city}.`,
+        urgency: "normal",
+        tag: "meteo-subscription-ready",
+        data: { url: `${env.APP_URL}?tab=alerts`, type: "ready" },
+        icon: `${env.APP_URL}icon.svg`,
+      });
+    } catch (error) {
+      console.error("Welcome push failed", error);
+    }
   }
 
-  return json({ ok: true }, 200, request, env);
+  return json({ ok: true, settings: record.settings }, 200, request, env);
 }
 
 async function unsubscribe(request, env) {
@@ -157,7 +165,8 @@ function evaluateAlerts(data, record) {
   if (!h?.time?.length) return [];
   const s = record.settings || {};
   const start = firstFutureIndex(h.time);
-  const end = Math.min(start + 7, h.time.length);
+  const leadHours = clamp(s.leadHours, 1, 12, 2);
+  const horizon = Date.now() + leadHours * 60 * 60 * 1000;
   const alerts = [];
 
   let bestRain = { value: -1, index: -1 };
@@ -165,7 +174,10 @@ function evaluateAlerts(data, record) {
   let snowIndex = -1;
   let stormIndex = -1;
 
-  for (let i = start; i < end; i++) {
+  for (let i = start; i < h.time.length; i++) {
+    const forecastTime = Date.parse(`${h.time[i]}Z`);
+    if (Number.isFinite(forecastTime) && forecastTime > horizon) break;
+
     const rain = Number(h.precipitation_probability?.[i]);
     const gust = Number(h.wind_gusts_10m?.[i]);
     const code = Number(h.weather_code?.[i]);
@@ -181,10 +193,10 @@ function evaluateAlerts(data, record) {
   if (s.snow !== false && snowIndex >= 0) {
     alerts.push({ type: "snow", priority: 3, title: "❄️ Neige prévue", body: `Neige possible vers ${formatUtcHour(h.time[snowIndex])} à ${record.city}.`, urgency: "normal" });
   }
-  if (s.wind !== false && bestWind.index >= 0 && bestWind.value >= Number(s.windThreshold || 60)) {
+  if (s.wind !== false && bestWind.index >= 0 && bestWind.value >= clamp(s.windThreshold, 30, 150, 60)) {
     alerts.push({ type: "wind", priority: 2, title: "💨 Rafales fortes", body: `Rafales jusqu’à ${Math.round(bestWind.value)} km/h vers ${formatUtcHour(h.time[bestWind.index])} à ${record.city}.`, urgency: "normal" });
   }
-  if (s.rain !== false && bestRain.index >= 0 && bestRain.value >= Number(s.rainThreshold || 70)) {
+  if (s.rain !== false && bestRain.index >= 0 && bestRain.value >= clamp(s.rainThreshold, 20, 100, 70)) {
     alerts.push({ type: "rain", priority: 1, title: "🌧️ Pluie probable", body: `${Math.round(bestRain.value)} % de risque vers ${formatUtcHour(h.time[bestRain.index])} à ${record.city}.`, urgency: "normal" });
   }
 
