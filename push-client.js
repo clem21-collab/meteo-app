@@ -61,18 +61,6 @@ async function registerAutomaticPush(showConfirmation = true) {
   const button = document.getElementById('notificationBtn');
   if (state) state.textContent = 'Notifications automatiques activées';
   if (button) button.textContent = 'Réenregistrer les alertes';
-
-  if (showConfirmation) {
-    try {
-      await registration.showNotification('🌤️ Météo', {
-        body: `Alertes automatiques activées pour ${currentPlace.name}.`,
-        icon: 'icon.svg',
-        badge: 'icon.svg',
-        tag: 'meteo-push-ready',
-        data: { url: './?tab=alerts' },
-      });
-    } catch {}
-  }
   return true;
 }
 
