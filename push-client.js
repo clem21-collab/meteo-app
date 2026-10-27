@@ -35,25 +35,20 @@ function addAdvancedAlertControls() {
   const rainToggle = document.getElementById('rainAlertToggle');
   const windThreshold = document.getElementById('windThreshold');
   if (!rainToggle || !windThreshold) return;
-
   if (!document.getElementById('rainThreshold')) {
     const rainRow = rainToggle.closest('.setting-row');
     const block = document.createElement('label');
-    block.className = 'setting-block';
-    block.htmlFor = 'rainThreshold';
+    block.className = 'setting-block';block.htmlFor = 'rainThreshold';
     block.innerHTML = '<span><strong>Seuil de pluie</strong><small id="rainThresholdLabel">70 %</small></span><input id="rainThreshold" type="range" min="20" max="100" value="70" step="5">';
     rainRow?.insertAdjacentElement('afterend', block);
   }
-
   if (!document.getElementById('leadHours')) {
     const windBlock = windThreshold.closest('.setting-block');
     const block = document.createElement('label');
-    block.className = 'setting-block';
-    block.htmlFor = 'leadHours';
+    block.className = 'setting-block';block.htmlFor = 'leadHours';
     block.innerHTML = '<span><strong>Anticipation</strong><small id="leadHoursLabel">2 h à l’avance</small></span><input id="leadHours" type="range" min="1" max="12" value="2" step="1">';
     windBlock?.insertAdjacentElement('afterend', block);
   }
-
   const settings = readPushAlertSettings();
   const rainSlider = document.getElementById('rainThreshold');
   const leadSlider = document.getElementById('leadHours');
@@ -74,7 +69,6 @@ function syncAdvancedControlsToStorage() {
   const rainThreshold = document.getElementById('rainThreshold');
   const windThreshold = document.getElementById('windThreshold');
   const leadHours = document.getElementById('leadHours');
-
   return writePushAlertSettings({
     rain: rain ? rain.checked : true,
     rainSoon: rainSoon ? rainSoon.checked : readPushAlertSettings().rainSoon,
@@ -91,29 +85,24 @@ async function registerAutomaticPush(showConfirmation = true) {
   if (!window.isSecureContext) throw new Error('Les notifications automatiques nécessitent HTTPS.');
   if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) throw new Error('Les notifications push ne sont pas prises en charge sur cet appareil.');
   if (typeof currentPlace === 'undefined' || !currentPlace) throw new Error('Attends que la météo de la ville soit chargée, puis réessaie.');
-
   if (Notification.permission === 'default') {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') throw new Error('Autorisation de notifications non accordée.');
   }
   if (Notification.permission !== 'granted') throw new Error('Les notifications sont bloquées dans les paramètres du site.');
-
   const configResponse = await fetch(`${PUSH_BACKEND}/config`, { cache: 'no-store' });
   if (!configResponse.ok) throw new Error('Le serveur de notifications n’est pas encore prêt.');
   const config = await configResponse.json();
   if (!config.vapidPublicKey) throw new Error('La clé publique VAPID est absente du serveur.');
-
   const registration = await navigator.serviceWorker.ready;
   let subscription = await registration.pushManager.getSubscription();
   if (!subscription) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKeyToUint8Array(config.vapidPublicKey) });
-
   const settingsValue = syncAdvancedControlsToStorage();
   const response = await fetch(`${PUSH_BACKEND}/subscribe`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST',headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ subscription: subscription.toJSON(), latitude: currentPlace.latitude, longitude: currentPlace.longitude, city: currentPlace.name, settings: settingsValue, confirm: showConfirmation }),
   });
   if (!response.ok) throw new Error('Impossible d’enregistrer ce téléphone pour les alertes automatiques.');
-
   const state = document.getElementById('notificationState');
   const button = document.getElementById('notificationBtn');
   if (state) state.textContent = 'Notifications automatiques activées';
@@ -133,7 +122,6 @@ async function refreshPushSettingsSilently() {
 }
 
 addAdvancedAlertControls();
-
 const pushButton = document.getElementById('notificationBtn');
 if (pushButton) {
   pushButton.addEventListener('click', async (event) => {
@@ -173,5 +161,11 @@ if (placeName && 'MutationObserver' in window) {
 }
 
 if (!document.querySelector('script[data-v34]')) {
-  const s=document.createElement('script');s.src='v34.js?v=3.4';s.dataset.v34='1';document.body.appendChild(s);
+  const s=document.createElement('script');
+  s.src='v34.js?v=3.4';s.dataset.v34='1';
+  s.onload=()=>{
+    const duplicate=document.getElementById('alertHours');
+    if(duplicate&&document.getElementById('leadHours'))duplicate.closest('.setting-block')?.remove();
+  };
+  document.body.appendChild(s);
 }
