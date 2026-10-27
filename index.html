@@ -10,8 +10,8 @@
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="preconnect" href="https://api.open-meteo.com">
   <link rel="preconnect" href="https://geocoding-api.open-meteo.com">
-  <link rel="stylesheet" href="style.css">
-  <title>Météo V3</title>
+  <link rel="stylesheet" href="style.css?v=3.1">
+  <title>Météo V3.2</title>
 </head>
 <body class="weather-clear">
   <div id="weatherFx" class="weather-fx" aria-hidden="true"></div>
@@ -187,7 +187,7 @@
           <strong id="notificationState">Notifications non activées</strong>
           <p class="muted">
             Sur Android, une fois l’application publiée en HTTPS et installée, les notifications utilisent le service worker.
-            Cette version peut déjà envoyer une notification de test et une alerte lors de l’ouverture de l’application.
+            Cette version peut recevoir de vraies alertes automatiques même lorsque l’application est fermée.
           </p>
         </div>
       </div>
@@ -208,6 +208,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=3.2"></script>
+  <script src="push-client.js?v=1"></script>
 </body>
 </html>
