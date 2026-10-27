@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#5d74e8">
+  <meta name="description" content="Application météo avec prévisions, favoris et radar pluie.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="preconnect" href="https://api.open-meteo.com">
+  <link rel="preconnect" href="https://geocoding-api.open-meteo.com">
+  <link rel="stylesheet" href="style.css">
+  <title>Météo V3</title>
+</head>
+<body class="weather-clear">
+  <div id="weatherFx" class="weather-fx" aria-hidden="true"></div>
+
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="place-block">
+        <p class="eyebrow">MÉTÉO EN DIRECT</p>
+        <div class="place-title-row">
+          <h1 id="placeName">Dijon</h1>
+          <button id="favoriteBtn" class="round-button favorite-btn" type="button" aria-label="Ajouter aux favoris" title="Ajouter aux favoris">☆</button>
+        </div>
+        <p id="placeDetail" class="muted">Chargement…</p>
+      </div>
+      <div class="top-actions">
+        <button id="installBtn" class="round-button" type="button" title="Installer l’application" aria-label="Installer l’application" hidden>⇩</button>
+        <button id="locationBtn" class="round-button" type="button" title="Utiliser ma position" aria-label="Utiliser ma position">⌖</button>
+      </div>
+    </header>
+
+    <section class="search-panel">
+      <form id="searchForm" autocomplete="off">
+        <label for="searchInput" class="sr-only">Rechercher une ville</label>
+        <div class="search-row">
+          <input id="searchInput" type="search" placeholder="Rechercher une ville…" minlength="2">
+          <button type="submit">Rechercher</button>
+        </div>
+      </form>
+      <div id="searchResults" class="search-results" hidden></div>
+    </section>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+
+    <nav class="tabs" aria-label="Sections de l’application">
+      <button class="tab active" type="button" data-tab="weather">Météo</button>
+      <button class="tab" type="button" data-tab="radar">Radar pluie</button>
+      <button class="tab" type="button" data-tab="favorites">Favoris</button>
+      <button class="tab" type="button" data-tab="alerts">Alertes</button>
+    </nav>
+
+    <section id="panel-weather" class="tab-panel active">
+      <section class="hero glass-card" aria-labelledby="currentTitle">
+        <div>
+          <p id="currentTitle" class="section-label">MAINTENANT</p>
+          <div class="current-weather">
+            <div id="weatherIcon" class="weather-icon" aria-hidden="true">⛅</div>
+            <div>
+              <div class="temperature-line">
+                <span id="temperature" class="temperature">--</span><span class="degree">°C</span>
+              </div>
+              <p id="condition">Chargement…</p>
+              <p id="feelsLike" class="muted">Ressenti -- °C</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="metrics">
+          <div><span>Pluie</span><strong id="precipitation">-- mm</strong></div>
+          <div><span>Humidité</span><strong id="humidity">-- %</strong></div>
+          <div><span>Vent</span><strong id="wind">-- km/h</strong></div>
+          <div><span>Rafales</span><strong id="gust">-- km/h</strong></div>
+          <div><span>Pression</span><strong id="pressure">-- hPa</strong></div>
+          <div><span>UV</span><strong id="uv">--</strong></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <h2>Prochaines heures</h2>
+          <span id="updatedAt" class="muted"></span>
+        </div>
+        <div id="hourly" class="hourly-scroller"></div>
+      </section>
+
+      <section class="section">
+        <h2>Prévisions sur 7 jours</h2>
+        <div id="daily" class="daily-list glass-card"></div>
+      </section>
+    </section>
+
+    <section id="panel-radar" class="tab-panel" hidden>
+      <div class="radar-header">
+        <div>
+          <h2>Radar pluie</h2>
+          <p class="muted">Historique des précipitations des 2 dernières heures.</p>
+        </div>
+        <button id="radarPlayBtn" class="secondary-button" type="button">▶ Animer</button>
+      </div>
+
+      <div class="radar-card glass-card">
+        <div id="radarMap" aria-label="Carte radar des précipitations"></div>
+        <div class="radar-controls">
+          <label for="radarSlider">Image radar : <strong id="radarTime">--:--</strong></label>
+          <input id="radarSlider" type="range" min="0" max="0" value="0" step="1">
+        </div>
+      </div>
+      <p id="radarStatus" class="muted radar-note">Le radar se charge à l’ouverture de cet onglet.</p>
+      <p class="attribution">Carte © OpenStreetMap • Radar : RainViewer</p>
+    </section>
+
+    <section id="panel-favorites" class="tab-panel" hidden>
+      <div class="section-heading">
+        <div>
+          <h2>Mes villes favorites</h2>
+          <p class="muted">Appuie sur ☆ à côté du nom d’une ville pour l’enregistrer.</p>
+        </div>
+      </div>
+      <div id="favoritesList" class="favorites-list"></div>
+    </section>
+
+    <section id="panel-alerts" class="tab-panel" hidden>
+      <div class="alerts-heading">
+        <div>
+          <h2>Alertes météo</h2>
+          <p class="muted">L’application analyse les prochaines heures et te signale les conditions importantes.</p>
+        </div>
+        <button id="notificationBtn" class="secondary-button" type="button">Activer les notifications</button>
+      </div>
+
+      <div class="alerts-grid">
+        <article class="glass-card alerts-card">
+          <h3>Alertes détectées</h3>
+          <div id="alertsList" class="detected-alerts">
+            <div class="empty-state">Chargement des prévisions…</div>
+          </div>
+        </article>
+
+        <article class="glass-card alerts-card">
+          <h3>Mes réglages</h3>
+
+          <label class="setting-row">
+            <span>
+              <strong>Pluie</strong>
+              <small>Prévenir si le risque devient important</small>
+            </span>
+            <input id="rainAlertToggle" type="checkbox" checked>
+          </label>
+
+          <label class="setting-row">
+            <span>
+              <strong>Vent fort</strong>
+              <small>Prévenir selon le seuil de rafales</small>
+            </span>
+            <input id="windAlertToggle" type="checkbox" checked>
+          </label>
+
+          <label class="setting-block" for="windThreshold">
+            <span><strong>Seuil de rafales</strong><small id="windThresholdLabel">60 km/h</small></span>
+            <input id="windThreshold" type="range" min="40" max="100" value="60" step="5">
+          </label>
+
+          <label class="setting-row">
+            <span>
+              <strong>Neige</strong>
+              <small>Prévenir si de la neige est prévue</small>
+            </span>
+            <input id="snowAlertToggle" type="checkbox" checked>
+          </label>
+
+          <label class="setting-row">
+            <span>
+              <strong>Orage</strong>
+              <small>Prévenir si un code orage apparaît</small>
+            </span>
+            <input id="stormAlertToggle" type="checkbox" checked>
+          </label>
+        </article>
+      </div>
+
+      <div class="notification-info glass-card">
+        <div class="notification-icon">🔔</div>
+        <div>
+          <strong id="notificationState">Notifications non activées</strong>
+          <p class="muted">
+            Sur Android, une fois l’application publiée en HTTPS et installée, les notifications utilisent le service worker.
+            Cette version peut déjà envoyer une notification de test et une alerte lors de l’ouverture de l’application.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Données de prévision : Open‑Meteo • Radar : RainViewer • Carte : OpenStreetMap.
+    </footer>
+
+    <nav class="mobile-bottom-nav" aria-label="Navigation mobile">
+      <button type="button" data-mobile-tab="weather"><span>☀️</span><small>Météo</small></button>
+      <button type="button" data-mobile-tab="radar"><span>🌧️</span><small>Radar</small></button>
+      <button type="button" data-mobile-tab="favorites"><span>★</span><small>Favoris</small></button>
+      <button type="button" data-mobile-tab="alerts"><span>🔔</span><small>Alertes</small></button>
+    </nav>
+
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+</html>
