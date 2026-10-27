@@ -1,0 +1,35 @@
+{
+  "name": "Météo V3",
+  "short_name": "Météo",
+  "description": "Météo, radar pluie, favoris et alertes météo.",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef3ff",
+  "theme_color": "#5d74e8",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "orientation": "any",
+  "categories": ["weather", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Radar pluie",
+      "short_name": "Radar",
+      "url": "./?tab=radar",
+      "icons": [{"src": "icon.svg", "sizes": "any", "type": "image/svg+xml"}]
+    },
+    {
+      "name": "Alertes météo",
+      "short_name": "Alertes",
+      "url": "./?tab=alerts",
+      "icons": [{"src": "icon.svg", "sizes": "any", "type": "image/svg+xml"}]
+    }
+  ]
+}
