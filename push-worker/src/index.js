@@ -79,6 +79,20 @@ async function storeSubscription(request, env) {
   };
 
   await env.PUSH_KV.put(SUB_KEY, JSON.stringify(record));
+
+  try {
+    await sendPush(env, record, {
+      title: "✅ Alertes météo activées",
+      body: `Les notifications automatiques sont actives pour ${record.city}.`,
+      urgency: "normal",
+      tag: "meteo-subscription-ready",
+      data: { url: `${env.APP_URL}?tab=alerts`, type: "ready" },
+      icon: `${env.APP_URL}icon.svg`,
+    });
+  } catch (error) {
+    console.error("Welcome push failed", error);
+  }
+
   return json({ ok: true }, 200, request, env);
 }
 
