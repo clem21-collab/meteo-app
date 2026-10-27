@@ -28,14 +28,8 @@ function clamp(value, min, max, fallback) {
 }
 
 function configureWebPush(env) {
-  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) {
-    throw new Error("VAPID keys are missing");
-  }
-  webpush.setVapidDetails(
-    env.VAPID_SUBJECT || env.APP_URL,
-    env.VAPID_PUBLIC_KEY,
-    env.VAPID_PRIVATE_KEY,
-  );
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) throw new Error("VAPID keys are missing");
+  webpush.setVapidDetails(env.VAPID_SUBJECT || env.APP_URL, env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY);
 }
 
 async function readBody(request) {
@@ -45,27 +39,15 @@ async function readBody(request) {
 }
 
 function validSubscription(sub) {
-  return !!(
-    sub &&
-    typeof sub.endpoint === "string" &&
-    sub.endpoint.startsWith("https://") &&
-    sub.keys &&
-    typeof sub.keys.p256dh === "string" &&
-    typeof sub.keys.auth === "string"
-  );
+  return !!(sub && typeof sub.endpoint === "string" && sub.endpoint.startsWith("https://") && sub.keys && typeof sub.keys.p256dh === "string" && typeof sub.keys.auth === "string");
 }
 
 async function storeSubscription(request, env) {
   const body = await readBody(request);
-  if (!validSubscription(body.subscription)) {
-    return json({ ok: false, error: "Invalid push subscription" }, 400, request, env);
-  }
+  if (!validSubscription(body.subscription)) return json({ ok: false, error: "Invalid push subscription" }, 400, request, env);
 
-  const lat = Number(body.latitude);
-  const lon = Number(body.longitude);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    return json({ ok: false, error: "Invalid coordinates" }, 400, request, env);
-  }
+  const lat = Number(body.latitude), lon = Number(body.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return json({ ok: false, error: "Invalid coordinates" }, 400, request, env);
 
   const record = {
     subscription: body.subscription,
@@ -75,6 +57,7 @@ async function storeSubscription(request, env) {
     settings: {
       rain: body.settings?.rain !== false,
       rainThreshold: clamp(body.settings?.rainThreshold, 20, 100, 70),
+      rainSoon: body.settings?.rainSoon !== false,
       wind: body.settings?.wind !== false,
       windThreshold: clamp(body.settings?.windThreshold, 30, 150, 60),
       snow: body.settings?.snow !== false,
@@ -96,9 +79,7 @@ async function storeSubscription(request, env) {
         data: { url: `${env.APP_URL}?tab=alerts`, type: "ready" },
         icon: `${env.APP_URL}icon.svg`,
       });
-    } catch (error) {
-      console.error("Welcome push failed", error);
-    }
+    } catch (error) { console.error("Welcome push failed", error); }
   }
 
   return json({ ok: true, settings: record.settings }, 200, request, env);
@@ -113,10 +94,7 @@ async function unsubscribe(request, env) {
 async function sendPush(env, record, payload) {
   configureWebPush(env);
   try {
-    await webpush.sendNotification(record.subscription, JSON.stringify(payload), {
-      TTL: 3600,
-      urgency: payload.urgency || "normal",
-    });
+    await webpush.sendNotification(record.subscription, JSON.stringify(payload), { TTL: 3600, urgency: payload.urgency || "normal" });
     return true;
   } catch (error) {
     const status = Number(error?.statusCode || error?.status || 0);
@@ -135,10 +113,9 @@ async function fetchForecast(record) {
   url.searchParams.set("longitude", record.longitude);
   url.searchParams.set("timezone", "UTC");
   url.searchParams.set("forecast_days", "1");
-  url.searchParams.set(
-    "hourly",
-    "precipitation_probability,weather_code,wind_gusts_10m,temperature_2m",
-  );
+  url.searchParams.set("hourly", "precipitation_probability,weather_code,wind_gusts_10m,temperature_2m");
+  url.searchParams.set("minutely_15", "precipitation,rain,weather_code");
+  url.searchParams.set("forecast_minutely_15", "8");
 
   const response = await fetch(url, { cf: { cacheTtl: 300 } });
   if (!response.ok) throw new Error(`Open-Meteo HTTP ${response.status}`);
@@ -153,11 +130,36 @@ function firstFutureIndex(times) {
 
 function formatUtcHour(value) {
   const d = new Date(`${value}Z`);
-  return new Intl.DateTimeFormat("fr-FR", {
-    timeZone: "Europe/Paris",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(d);
+  return new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" }).format(d);
+}
+
+function imminentRainAlert(data, record) {
+  if (record.settings?.rainSoon === false) return null;
+  const m = data?.minutely_15;
+  if (!m?.time?.length) return null;
+  const now = Date.now();
+  let start = m.time.findIndex((t) => Date.parse(`${t}Z`) >= now - 5 * 60 * 1000);
+  if (start < 0) start = 0;
+  const currentRain = Number(m.rain?.[start] ?? m.precipitation?.[start] ?? 0);
+  if (currentRain >= 0.1) return null;
+
+  for (let i = start + 1; i < Math.min(start + 4, m.time.length); i++) {
+    const when = Date.parse(`${m.time[i]}Z`);
+    const minutesRaw = Math.round((when - now) / 60000);
+    const rain = Number(m.rain?.[i] ?? m.precipitation?.[i] ?? 0);
+    if (minutesRaw >= 0 && minutesRaw <= 45 && rain >= 0.1) {
+      const minutes = Math.max(5, Math.round(minutesRaw / 5) * 5);
+      return {
+        type: "rainSoon",
+        priority: 4.5,
+        title: "🌧️ Pluie bientôt",
+        body: `Pluie possible dans environ ${minutes} min à ${record.city}.`,
+        urgency: "high",
+        cooldownMs: 90 * 60 * 1000,
+      };
+    }
+  }
+  return null;
 }
 
 function evaluateAlerts(data, record) {
@@ -169,44 +171,36 @@ function evaluateAlerts(data, record) {
   const horizon = Date.now() + leadHours * 60 * 60 * 1000;
   const alerts = [];
 
+  const soon = imminentRainAlert(data, record);
+  if (soon) alerts.push(soon);
+
   let bestRain = { value: -1, index: -1 };
   let bestWind = { value: -1, index: -1 };
-  let snowIndex = -1;
-  let stormIndex = -1;
+  let snowIndex = -1, stormIndex = -1;
 
   for (let i = start; i < h.time.length; i++) {
     const forecastTime = Date.parse(`${h.time[i]}Z`);
     if (Number.isFinite(forecastTime) && forecastTime > horizon) break;
-
     const rain = Number(h.precipitation_probability?.[i]);
     const gust = Number(h.wind_gusts_10m?.[i]);
     const code = Number(h.weather_code?.[i]);
     if (Number.isFinite(rain) && rain > bestRain.value) bestRain = { value: rain, index: i };
     if (Number.isFinite(gust) && gust > bestWind.value) bestWind = { value: gust, index: i };
-    if (snowIndex < 0 && [71, 73, 75, 77, 85, 86].includes(code)) snowIndex = i;
-    if (stormIndex < 0 && [95, 96, 99].includes(code)) stormIndex = i;
+    if (snowIndex < 0 && [71,73,75,77,85,86].includes(code)) snowIndex = i;
+    if (stormIndex < 0 && [95,96,99].includes(code)) stormIndex = i;
   }
 
-  if (s.storm !== false && stormIndex >= 0) {
-    alerts.push({ type: "storm", priority: 4, title: "⛈️ Orage possible", body: `Orage possible vers ${formatUtcHour(h.time[stormIndex])} à ${record.city}.`, urgency: "high" });
-  }
-  if (s.snow !== false && snowIndex >= 0) {
-    alerts.push({ type: "snow", priority: 3, title: "❄️ Neige prévue", body: `Neige possible vers ${formatUtcHour(h.time[snowIndex])} à ${record.city}.`, urgency: "normal" });
-  }
-  if (s.wind !== false && bestWind.index >= 0 && bestWind.value >= clamp(s.windThreshold, 30, 150, 60)) {
-    alerts.push({ type: "wind", priority: 2, title: "💨 Rafales fortes", body: `Rafales jusqu’à ${Math.round(bestWind.value)} km/h vers ${formatUtcHour(h.time[bestWind.index])} à ${record.city}.`, urgency: "normal" });
-  }
-  if (s.rain !== false && bestRain.index >= 0 && bestRain.value >= clamp(s.rainThreshold, 20, 100, 70)) {
-    alerts.push({ type: "rain", priority: 1, title: "🌧️ Pluie probable", body: `${Math.round(bestRain.value)} % de risque vers ${formatUtcHour(h.time[bestRain.index])} à ${record.city}.`, urgency: "normal" });
-  }
+  if (s.storm !== false && stormIndex >= 0) alerts.push({ type: "storm", priority: 5, title: "⛈️ Orage possible", body: `Orage possible vers ${formatUtcHour(h.time[stormIndex])} à ${record.city}.`, urgency: "high", cooldownMs: 3*60*60*1000 });
+  if (s.snow !== false && snowIndex >= 0) alerts.push({ type: "snow", priority: 3, title: "❄️ Neige prévue", body: `Neige possible vers ${formatUtcHour(h.time[snowIndex])} à ${record.city}.`, urgency: "normal", cooldownMs: 3*60*60*1000 });
+  if (s.wind !== false && bestWind.index >= 0 && bestWind.value >= clamp(s.windThreshold,30,150,60)) alerts.push({ type: "wind", priority: 2, title: "💨 Rafales fortes", body: `Rafales jusqu’à ${Math.round(bestWind.value)} km/h vers ${formatUtcHour(h.time[bestWind.index])} à ${record.city}.`, urgency: "normal", cooldownMs: 3*60*60*1000 });
+  if (s.rain !== false && bestRain.index >= 0 && bestRain.value >= clamp(s.rainThreshold,20,100,70)) alerts.push({ type: "rain", priority: 1, title: "🌧️ Pluie probable", body: `${Math.round(bestRain.value)} % de risque vers ${formatUtcHour(h.time[bestRain.index])} à ${record.city}.`, urgency: "normal", cooldownMs: 3*60*60*1000 });
 
-  return alerts.sort((a, b) => b.priority - a.priority);
+  return alerts.sort((a,b) => b.priority-a.priority);
 }
 
 async function checkWeather(env) {
   const record = await env.PUSH_KV.get(SUB_KEY, "json");
   if (!record?.subscription) return;
-
   const forecast = await fetchForecast(record);
   const alerts = evaluateAlerts(forecast, record);
   if (!alerts.length) return;
@@ -227,38 +221,23 @@ async function checkWeather(env) {
   });
 
   if (sent) {
-    await env.PUSH_KV.put(
-      STATE_KEY,
-      JSON.stringify({ type: alert.type, sentAt: now, blockedUntil: now + 3 * 60 * 60 * 1000 }),
-    );
+    const cooldown = Number(alert.cooldownMs || 3*60*60*1000);
+    await env.PUSH_KV.put(STATE_KEY, JSON.stringify({ type: alert.type, sentAt: now, blockedUntil: now + cooldown }));
   }
 }
 
 export default {
   async fetch(request, env) {
-    if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: cors(request, env) });
-    }
-
+    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(request, env) });
     const url = new URL(request.url);
-    if (url.pathname === "/health") {
-      return json({ ok: true, service: "meteo-push" }, 200, request, env);
-    }
+    if (url.pathname === "/health") return json({ ok: true, service: "meteo-push", version: "3.4" }, 200, request, env);
     if (url.pathname === "/config" && request.method === "GET") {
       if (!env.VAPID_PUBLIC_KEY) return json({ ok: false, error: "VAPID not configured" }, 503, request, env);
       return json({ vapidPublicKey: env.VAPID_PUBLIC_KEY }, 200, request, env);
     }
-    if (url.pathname === "/subscribe" && request.method === "POST") {
-      return storeSubscription(request, env);
-    }
-    if (url.pathname === "/unsubscribe" && request.method === "POST") {
-      return unsubscribe(request, env);
-    }
-
+    if (url.pathname === "/subscribe" && request.method === "POST") return storeSubscription(request, env);
+    if (url.pathname === "/unsubscribe" && request.method === "POST") return unsubscribe(request, env);
     return json({ ok: false, error: "Not found" }, 404, request, env);
   },
-
-  async scheduled(_controller, env, ctx) {
-    ctx.waitUntil(checkWeather(env));
-  },
+  async scheduled(_controller, env, ctx) { ctx.waitUntil(checkWeather(env)); },
 };
