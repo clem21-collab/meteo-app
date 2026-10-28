@@ -1,4 +1,4 @@
-const CACHE='meteo-v3-8-shell';
+const CACHE='meteo-v3-9-shell';
 const LOCAL_ASSETS=['./','./index.html','./style.css','./app.js','./push-client.js','./v34.js','./v34.css','./v35.js','./v35.css','./v36.js','./v36.css','./v37.js','./v37.css','./v38.js','./v38.css','./manifest.webmanifest','./icon.svg'];
 
 self.addEventListener('install',event=>{
