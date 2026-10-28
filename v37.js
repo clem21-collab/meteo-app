@@ -172,3 +172,11 @@ function patchV37UnifiedRadar(){
     new MutationObserver(()=>{v37RainSeries=[];v37RainPlaceKey='';setTimeout(()=>refreshV37Timeline(true),1000);}).observe(place,{childList:true,characterData:true,subtree:true});
   }
 }
+
+(function loadV38Fullscreen(){
+  if(document.querySelector('script[data-v38]'))return;
+  const s=document.createElement('script');
+  s.src='v38.js?v=3.8';
+  s.dataset.v38='1';
+  document.body.appendChild(s);
+})();
