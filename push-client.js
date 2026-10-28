@@ -44,4 +44,5 @@ function loadEnhancement(src,dataKey,onload){return new Promise(resolve=>{const 
 (async()=>{
   await loadEnhancement('v34.js?v=3.4','data-v34',()=>{const duplicate=document.getElementById('alertHours');if(duplicate&&document.getElementById('leadHours'))duplicate.closest('.setting-block')?.remove();});
   await loadEnhancement('v35.js?v=3.5','data-v35');
+  await loadEnhancement('v36.js?v=3.6','data-v36');
 })();
