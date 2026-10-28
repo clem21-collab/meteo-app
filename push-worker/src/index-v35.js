@@ -3,6 +3,8 @@ import base from "./index.js";
 const MF_BASE = "https://public-api.meteofrance.fr/public/aromepi/1.0";
 const MF_SERVICE = "MF-NWP-HIGHRES-AROMEPI-001-FRANCE-WMS";
 const META_KEY = "mf:aromepi:meta:v1";
+const TOKEN_KEY = "mf:oauth:token:v1";
+const TOKEN_URL = "https://portail-api.meteofrance.fr/token";
 
 function cors(env) {
   return {
@@ -20,20 +22,92 @@ function json(data, status, env) {
   });
 }
 
+function cleanSecret(raw) {
+  let value = String(raw || "").trim();
+  value = value.replace(/^['"]|['"]$/g, "").trim();
+  return value;
+}
+
 function cleanMfKey(raw) {
-  let key = String(raw || "").trim();
-  key = key.replace(/^['"]|['"]$/g, "").trim();
+  let key = cleanSecret(raw);
   key = key.replace(/^apikey\s*:\s*/i, "").trim();
   key = key.replace(/^bearer\s+/i, "").trim();
   return key;
 }
 
+function cleanApplicationId(raw) {
+  let value = cleanSecret(raw);
+  value = value.replace(/^authorization\s*:\s*basic\s+/i, "").trim();
+  value = value.replace(/^basic\s+/i, "").trim();
+  return value;
+}
+
+async function getOauthToken(env, forceRefresh = false) {
+  const applicationId = cleanApplicationId(env.METEOFRANCE_APPLICATION_ID);
+  if (!applicationId) return null;
+
+  if (!forceRefresh && env.PUSH_KV) {
+    const cached = await env.PUSH_KV.get(TOKEN_KEY, "json");
+    if (cached?.accessToken && Number(cached?.expiresAt || 0) > Date.now() + 60_000) {
+      return cached.accessToken;
+    }
+  }
+
+  const response = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Basic ${applicationId}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Accept": "application/json",
+    },
+    body: "grant_type=client_credentials",
+  });
+
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 250);
+    throw new Error(`Météo-France OAuth token HTTP ${response.status}${detail ? `: ${detail}` : ""}`);
+  }
+
+  const data = await response.json();
+  if (!data?.access_token) throw new Error("Météo-France OAuth response has no access_token");
+
+  const expiresIn = Math.max(300, Number(data.expires_in || 3600));
+  const expiresAt = Date.now() + expiresIn * 1000;
+  if (env.PUSH_KV) {
+    await env.PUSH_KV.put(
+      TOKEN_KEY,
+      JSON.stringify({ accessToken: data.access_token, expiresAt }),
+      { expirationTtl: Math.max(300, Math.floor(expiresIn - 60)) },
+    );
+  }
+  return data.access_token;
+}
+
 async function mfFetch(url, env, accept = "*/*") {
+  const applicationId = cleanApplicationId(env.METEOFRANCE_APPLICATION_ID);
+
+  if (applicationId) {
+    let token = await getOauthToken(env, false);
+    let response = await fetch(url, {
+      headers: { accept, Authorization: `Bearer ${token}` },
+      cf: { cacheTtl: 120 },
+    });
+
+    if (response.status === 401) {
+      if (env.PUSH_KV) await env.PUSH_KV.delete(TOKEN_KEY);
+      token = await getOauthToken(env, true);
+      response = await fetch(url, {
+        headers: { accept, Authorization: `Bearer ${token}` },
+        cf: { cacheTtl: 120 },
+      });
+    }
+    return response;
+  }
+
   const key = cleanMfKey(env.METEOFRANCE_API_KEY);
-  if (!key) throw new Error("METEOFRANCE_API_KEY is missing");
+  if (!key) throw new Error("METEOFRANCE_APPLICATION_ID is missing (OAuth2 is required for AROME-PI)");
 
   const attempts = [];
-
   let response = await fetch(url, {
     headers: { accept, apikey: key },
     cf: { cacheTtl: 120 },
