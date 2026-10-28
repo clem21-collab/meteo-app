@@ -2,7 +2,7 @@ const PUSH_BACKEND='https://meteo-push.clemret17.workers.dev';
 const PUSH_SETTINGS_KEY='meteo-app-alert-settings-v3';
 
 function vapidKeyToUint8Array(value){const padding='='.repeat((4-(value.length%4))%4),base64=(value+padding).replace(/-/g,'+').replace(/_/g,'/'),raw=atob(base64),out=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);return out;}
-function readPushAlertSettings(){let saved={};try{saved=JSON.parse(localStorage.getItem(PUSH_SETTINGS_KEY)||'{}')||{};}catch{}return{rain:saved.rain!==false,rainThreshold:Math.max(20,Math.min(100,Number(saved.rainThreshold??70))),rainSoon:saved.rainSoon!==false,wind:saved.wind!==false,windThreshold:Math.max(30,Math.min(150,Number(saved.windThreshold??60))),snow:saved.snow!==false,storm:saved.storm!==false,leadHours:Math.max(1,Math.min(12,Number(saved.leadHours??2)))};}
+function readPushAlertSettings(){let saved={};try{saved=JSON.parse(localStorage.getItem(PUSH_SETTINGS_KEY)||'{}')||{}';}catch{}return{rain:saved.rain!==false,rainThreshold:Math.max(20,Math.min(100,Number(saved.rainThreshold??70))),rainSoon:saved.rainSoon!==false,rainSoonMinutes:Math.max(15,Math.min(60,Number(saved.rainSoonMinutes??30))),rainSoonMinMm:[0.1,0.5,1.5].includes(Number(saved.rainSoonMinMm))?Number(saved.rainSoonMinMm):0.1,wind:saved.wind!==false,windThreshold:Math.max(30,Math.min(150,Number(saved.windThreshold??60))),snow:saved.snow!==false,storm:saved.storm!==false,leadHours:Math.max(1,Math.min(12,Number(saved.leadHours??2))),vigilance:saved.vigilance!==false,vigilanceLevel:Math.max(2,Math.min(4,Number(saved.vigilanceLevel??3)))};}
 function writePushAlertSettings(patch={}){const next={...readPushAlertSettings(),...patch};localStorage.setItem(PUSH_SETTINGS_KEY,JSON.stringify(next));return next;}
 
 function addAdvancedAlertControls(){
@@ -14,7 +14,20 @@ function addAdvancedAlertControls(){
 
 function syncAdvancedControlsToStorage(){
   const by=id=>document.getElementById(id),old=readPushAlertSettings();
-  return writePushAlertSettings({rain:by('rainAlertToggle')?.checked??true,rainSoon:by('rainSoonAlertToggle')?.checked??old.rainSoon,wind:by('windAlertToggle')?.checked??true,snow:by('snowAlertToggle')?.checked??true,storm:by('stormAlertToggle')?.checked??true,rainThreshold:Number(by('rainThreshold')?.value??70),windThreshold:Number(by('windThreshold')?.value??60),leadHours:Number(by('leadHours')?.value??2)});
+  return writePushAlertSettings({
+    rain:by('rainAlertToggle')?.checked??true,
+    rainSoon:by('v41RainSoonToggle')?.checked??by('rainSoonAlertToggle')?.checked??old.rainSoon,
+    rainSoonMinutes:Number(by('v41RainSoonWindow')?.value??old.rainSoonMinutes??30),
+    rainSoonMinMm:Number(by('v41RainIntensity')?.value??old.rainSoonMinMm??0.1),
+    wind:by('windAlertToggle')?.checked??true,
+    snow:by('snowAlertToggle')?.checked??true,
+    storm:by('stormAlertToggle')?.checked??true,
+    rainThreshold:Number(by('rainThreshold')?.value??70),
+    windThreshold:Number(by('windThreshold')?.value??60),
+    leadHours:Number(by('leadHours')?.value??2),
+    vigilance:by('v41VigilanceToggle')?.checked??old.vigilance,
+    vigilanceLevel:Number(by('v41VigilanceLevel')?.value??old.vigilanceLevel??3)
+  });
 }
 
 async function registerAutomaticPush(showConfirmation=true){
@@ -25,7 +38,7 @@ async function registerAutomaticPush(showConfirmation=true){
   if(Notification.permission!=='granted')throw new Error('Les notifications sont bloquées dans les paramètres du site.');
   const cr=await fetch(`${PUSH_BACKEND}/config`,{cache:'no-store'});if(!cr.ok)throw new Error('Le serveur de notifications n’est pas encore prêt.');const config=await cr.json();if(!config.vapidPublicKey)throw new Error('La clé publique VAPID est absente du serveur.');
   const registration=await navigator.serviceWorker.ready;let subscription=await registration.pushManager.getSubscription();if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:vapidKeyToUint8Array(config.vapidPublicKey)});
-  const response=await fetch(`${PUSH_BACKEND}/subscribe`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription:subscription.toJSON(),latitude:currentPlace.latitude,longitude:currentPlace.longitude,city:currentPlace.name,settings:syncAdvancedControlsToStorage(),confirm:showConfirmation})});
+  const response=await fetch(`${PUSH_BACKEND}/subscribe`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription:subscription.toJSON(),latitude:currentPlace.latitude,longitude:currentPlace.longitude,city:currentPlace.name,department:currentPlace.departmentCode||'',settings:syncAdvancedControlsToStorage(),confirm:showConfirmation})});
   if(!response.ok)throw new Error('Impossible d’enregistrer ce téléphone pour les alertes automatiques.');
   const state=document.getElementById('notificationState'),button=document.getElementById('notificationBtn');if(state)state.textContent='Notifications automatiques activées';if(button)button.textContent='Réenregistrer les alertes';return true;
 }
@@ -48,4 +61,5 @@ function loadEnhancement(src,dataKey,onload){return new Promise(resolve=>{const 
   await loadEnhancement('v37.js?v=3.7','data-v37');
   await loadEnhancement('v38.js?v=3.9','data-v38');
   await loadEnhancement('v40.js?v=4.0','data-v40');
+  await loadEnhancement('v41.js?v=4.1','data-v41');
 })();
