@@ -63,4 +63,5 @@ function loadEnhancement(src,dataKey,onload){return new Promise(resolve=>{const 
   await loadEnhancement('v40.js?v=4.0','data-v40');
   await loadEnhancement('v41.js?v=4.1','data-v41');
   await loadEnhancement('v42.js?v=4.2','data-v42');
+  await loadEnhancement('v43.js?v=4.3','data-v43');
 })();
