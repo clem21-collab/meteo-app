@@ -1,5 +1,5 @@
-const CACHE='meteo-v4-0-shell';
-const LOCAL_ASSETS=['./','./index.html','./style.css','./app.js','./push-client.js','./v34.js','./v34.css','./v35.js','./v35.css','./v36.js','./v36.css','./v37.js','./v37.css','./v38.js','./v38.css','./v40.js','./manifest.webmanifest','./icon.svg'];
+const CACHE='meteo-v4-1-shell';
+const LOCAL_ASSETS=['./','./index.html','./style.css','./app.js','./push-client.js','./v34.js','./v34.css','./v35.js','./v35.css','./v36.js','./v36.css','./v37.js','./v37.css','./v38.js','./v38.css','./v40.js','./v41.js','./v41.css','./manifest.webmanifest','./icon.svg'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(LOCAL_ASSETS)));
