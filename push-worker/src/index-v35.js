@@ -20,17 +20,47 @@ function json(data, status, env) {
   });
 }
 
+function cleanMfKey(raw) {
+  let key = String(raw || "").trim();
+  key = key.replace(/^['"]|['"]$/g, "").trim();
+  key = key.replace(/^apikey\s*:\s*/i, "").trim();
+  key = key.replace(/^bearer\s+/i, "").trim();
+  return key;
+}
+
 async function mfFetch(url, env, accept = "*/*") {
-  if (!env.METEOFRANCE_API_KEY) throw new Error("METEOFRANCE_API_KEY is missing");
+  const key = cleanMfKey(env.METEOFRANCE_API_KEY);
+  if (!key) throw new Error("METEOFRANCE_API_KEY is missing");
+
+  const attempts = [];
+
   let response = await fetch(url, {
-    headers: { accept, apikey: env.METEOFRANCE_API_KEY },
+    headers: { accept, apikey: key },
     cf: { cacheTtl: 120 },
   });
-  if (response.status === 401 || response.status === 403) {
-    response = await fetch(url, {
-      headers: { accept, Authorization: `Bearer ${env.METEOFRANCE_API_KEY}` },
-      cf: { cacheTtl: 120 },
-    });
+  attempts.push(`header:${response.status}`);
+  if (response.ok || ![401, 403].includes(response.status)) return response;
+
+  const urlWithKey = new URL(url);
+  urlWithKey.searchParams.set("apikey", key);
+  response = await fetch(urlWithKey.toString(), {
+    headers: { accept },
+    cf: { cacheTtl: 120 },
+  });
+  attempts.push(`query:${response.status}`);
+  if (response.ok || ![401, 403].includes(response.status)) return response;
+
+  response = await fetch(url, {
+    headers: { accept, Authorization: `Bearer ${key}` },
+    cf: { cacheTtl: 120 },
+  });
+  attempts.push(`bearer:${response.status}`);
+
+  if ([401, 403].includes(response.status)) {
+    const body = await response.arrayBuffer();
+    const headers = new Headers(response.headers);
+    headers.set("x-mf-auth-attempts", attempts.join(","));
+    return new Response(body, { status: response.status, statusText: response.statusText, headers });
   }
   return response;
 }
@@ -104,7 +134,10 @@ async function capabilities(env) {
   if (cached?.cachedAt && Date.now() - cached.cachedAt < 180000) return cached;
   const url = `${MF_BASE}/wms/${MF_SERVICE}/GetCapabilities?service=WMS&version=1.3.0&language=fre`;
   const response = await mfFetch(url, env, "application/xml,text/xml,*/*");
-  if (!response.ok) throw new Error(`Météo-France GetCapabilities HTTP ${response.status}`);
+  if (!response.ok) {
+    const attempts = response.headers.get("x-mf-auth-attempts");
+    throw new Error(`Météo-France GetCapabilities HTTP ${response.status}${attempts ? ` (${attempts})` : ""}`);
+  }
   const parsed = parseCapabilities(await response.text());
   const result = { ...parsed, cachedAt: Date.now() };
   await env.PUSH_KV?.put(META_KEY, JSON.stringify(result), { expirationTtl: 300 });
