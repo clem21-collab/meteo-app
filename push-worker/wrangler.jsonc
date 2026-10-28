@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "meteo-push",
-  "main": "src/index-v35.js",
+  "main": "src/index-v41.js",
   "compatibility_date": "2026-10-27",
   "vars": {
     "APP_ORIGIN": "https://clem21-collab.github.io",
