@@ -1,0 +1,15 @@
+{
+  "name": "meteo-v5-android-twa",
+  "private": true,
+  "version": "5.0.0",
+  "description": "Configuration Android / Google Play de la PWA Météo V5.0",
+  "scripts": {
+    "android:doctor": "bubblewrap doctor",
+    "android:update": "bubblewrap update --skipVersionUpgrade --manifest=twa-manifest.json",
+    "android:build": "bubblewrap build --manifest=twa-manifest.json",
+    "android:build:unsigned": "bubblewrap build --skipSigning --manifest=twa-manifest.json"
+  },
+  "devDependencies": {
+    "@bubblewrap/cli": "1.25.0"
+  }
+}
