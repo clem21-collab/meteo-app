@@ -2,6 +2,11 @@ name: Android TWA build
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'android-twa/**'
+      - '.github/workflows/android-twa-build.yml'
 
 jobs:
   build-unsigned:
