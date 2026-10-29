@@ -1,0 +1,68 @@
+{
+  "packageId": "fr.clem.meteo",
+  "host": "clem21-collab.github.io",
+  "name": "Météo V5.0",
+  "launcherName": "Météo",
+  "display": "standalone",
+  "themeColor": "#5d74e8",
+  "themeColorDark": "#101831",
+  "navigationColor": "#101831",
+  "navigationColorDark": "#07101f",
+  "navigationDividerColor": "#00000000",
+  "navigationDividerColorDark": "#00000000",
+  "backgroundColor": "#eef3ff",
+  "enableNotifications": true,
+  "startUrl": "/meteo-app/?source=play",
+  "iconUrl": "https://clem21-collab.github.io/meteo-app/icon.svg",
+  "maskableIconUrl": "https://clem21-collab.github.io/meteo-app/icon.svg",
+  "monochromeIconUrl": "https://clem21-collab.github.io/meteo-app/icon.svg",
+  "splashScreenFadeOutDuration": 250,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "meteo"
+  },
+  "appVersionCode": 1,
+  "appVersion": "5.0.0",
+  "shortcuts": [
+    {
+      "name": "Aujourd’hui",
+      "shortName": "Aujourd’hui",
+      "url": "/meteo-app/?tab=today",
+      "chosenIconUrl": "https://clem21-collab.github.io/meteo-app/icon.svg"
+    },
+    {
+      "name": "Radar pluie",
+      "shortName": "Radar",
+      "url": "/meteo-app/?tab=radar",
+      "chosenIconUrl": "https://clem21-collab.github.io/meteo-app/icon.svg"
+    },
+    {
+      "name": "Statistiques",
+      "shortName": "Stats",
+      "url": "/meteo-app/?tab=stats",
+      "chosenIconUrl": "https://clem21-collab.github.io/meteo-app/icon.svg"
+    },
+    {
+      "name": "Alertes météo",
+      "shortName": "Alertes",
+      "url": "/meteo-app/?tab=alerts",
+      "chosenIconUrl": "https://clem21-collab.github.io/meteo-app/icon.svg"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://clem21-collab.github.io/meteo-app/manifest.webmanifest",
+  "fullScopeUrl": "https://clem21-collab.github.io/meteo-app/",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "minSdkVersion": 23,
+  "orientation": "any",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": []
+}
