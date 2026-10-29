@@ -10,6 +10,6 @@
     "android:build:unsigned": "bubblewrap build --skipSigning --manifest=twa-manifest.json"
   },
   "devDependencies": {
-    "@bubblewrap/cli": "1.25.0"
+    "@bubblewrap/cli": "1.27.0"
   }
 }
