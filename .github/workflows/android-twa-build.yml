@@ -1,0 +1,54 @@
+name: Android TWA build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-unsigned:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android API 36
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Install Bubblewrap
+        working-directory: android-twa
+        run: npm install
+
+      - name: Generate Android project
+        working-directory: android-twa
+        run: npx bubblewrap update --skipVersionUpgrade --manifest=twa-manifest.json
+
+      - name: Build unsigned APK and AAB
+        working-directory: android-twa
+        run: npx bubblewrap build --skipSigning --skipPwaValidation --manifest=twa-manifest.json
+
+      - name: Upload unsigned Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: meteo-v5-android-unsigned
+          if-no-files-found: error
+          path: |
+            android-twa/app/build/outputs/apk/release/app-release-unsigned.apk
+            android-twa/app/build/outputs/bundle/release/app-release.aab
