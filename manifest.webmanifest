@@ -1,7 +1,7 @@
 {
-  "name": "Météo V3",
+  "name": "Météo V5.0",
   "short_name": "Météo",
-  "description": "Météo, radar pluie, favoris et alertes météo.",
+  "description": "Prévisions détaillées, radar, vigilance, alertes, statistiques, air et pollen.",
   "start_url": "./?source=pwa",
   "scope": "./",
   "display": "standalone",
@@ -20,9 +20,21 @@
   "categories": ["weather", "utilities"],
   "shortcuts": [
     {
+      "name": "Aujourd’hui",
+      "short_name": "Aujourd’hui",
+      "url": "./?tab=today",
+      "icons": [{"src": "icon.svg", "sizes": "any", "type": "image/svg+xml"}]
+    },
+    {
       "name": "Radar pluie",
       "short_name": "Radar",
       "url": "./?tab=radar",
+      "icons": [{"src": "icon.svg", "sizes": "any", "type": "image/svg+xml"}]
+    },
+    {
+      "name": "Statistiques météo",
+      "short_name": "Stats",
+      "url": "./?tab=stats",
       "icons": [{"src": "icon.svg", "sizes": "any", "type": "image/svg+xml"}]
     },
     {
