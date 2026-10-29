@@ -62,15 +62,20 @@ jobs:
         working-directory: android-twa
         run: npx bubblewrap update --skipVersionUpgrade --manifest=twa-manifest.json
 
-      - name: Build unsigned APK and AAB
+      - name: Build installable debug APK
+        working-directory: android-twa
+        run: ./gradlew assembleDebug
+
+      - name: Build unsigned release APK and AAB
         working-directory: android-twa
         run: npx bubblewrap build --skipSigning --skipPwaValidation --manifest=twa-manifest.json
 
-      - name: Upload unsigned Android artifacts
+      - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: meteo-v5-android-unsigned
+          name: meteo-v5-android-build
           if-no-files-found: error
           path: |
+            android-twa/app/build/outputs/apk/debug/app-debug.apk
             android-twa/app/build/outputs/apk/release/app-release-unsigned.apk
             android-twa/app/build/outputs/bundle/release/app-release.aab
