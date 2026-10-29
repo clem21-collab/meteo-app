@@ -1,4 +1,5 @@
 {
+  "id": "/meteo-app/",
   "name": "Météo V5.0",
   "short_name": "Météo",
   "description": "Prévisions détaillées, radar, vigilance, alertes, statistiques, air et pollen.",
