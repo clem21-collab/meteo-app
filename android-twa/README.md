@@ -8,7 +8,7 @@ Ce dossier contient la configuration source de l'application Android Trusted Web
 - Version : `5.0.0` (`versionCode` 1)
 - PWA : `https://clem21-collab.github.io/meteo-app/`
 - Manifeste web : `https://clem21-collab.github.io/meteo-app/manifest.webmanifest`
-- Outil : Bubblewrap `1.25.0`
+- Outil : Bubblewrap `1.27.0`
 - Cible Android : API 36 via Bubblewrap
 - Minimum Android : API 23
 - Notifications TWA : activées
@@ -18,7 +18,7 @@ Ce dossier contient la configuration source de l'application Android Trusted Web
 
 ## Générer le projet Android
 
-Prérequis recommandés : Node.js 20 LTS ou supérieur, Java/JDK et Android SDK. Bubblewrap peut aider à installer ses dépendances au premier lancement.
+Prérequis recommandés : Node.js 20 LTS ou supérieur, Java/JDK et Android SDK. Bubblewrap 1.27 nécessite Node.js 18 minimum et peut aider à installer ses dépendances au premier lancement.
 
 ```bash
 cd android-twa
