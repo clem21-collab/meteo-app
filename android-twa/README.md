@@ -10,7 +10,7 @@ Ce dossier contient la configuration source de l'application Android Trusted Web
 - Manifeste web : `https://clem21-collab.github.io/meteo-app/manifest.webmanifest`
 - Outil : Bubblewrap `1.27.0`
 - Cible Android : API 36 via Bubblewrap
-- Minimum Android : API 23
+- Minimum Android : API 24 (Android 7.0), requis par Android Browser Helper 2.7.4
 - Notifications TWA : activées
 - Fallback : Custom Tabs
 
@@ -18,7 +18,7 @@ Ce dossier contient la configuration source de l'application Android Trusted Web
 
 ## Générer le projet Android
 
-Prérequis recommandés : Node.js 20 LTS ou supérieur, Java/JDK et Android SDK. Bubblewrap 1.27 nécessite Node.js 18 minimum et peut aider à installer ses dépendances au premier lancement.
+Prérequis recommandés : Node.js 20 LTS ou supérieur, Java/JDK 17 et Android SDK. Bubblewrap 1.27 nécessite Node.js 18 minimum et peut aider à installer ses dépendances au premier lancement.
 
 ```bash
 cd android-twa
