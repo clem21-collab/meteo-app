@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "fr.clem.meteo",
+      "sha256_cert_fingerprints": [
+        "EF:DB:54:88:E0:A7:78:AC:1B:9E:04:2A:6E:3D:76:6E:4E:39:1C:A4:F2:0F:7F:80:61:42:47:29:0A:E5:0A:58"
+      ]
+    }
+  }
+]
