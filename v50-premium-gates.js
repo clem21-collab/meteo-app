@@ -37,19 +37,35 @@
     modal.hidden=false;document.body.style.overflow='hidden';
   }
 
+  function freeFavoriteLimitReached(){
+    try{
+      if(isPremium()||typeof currentPlace==='undefined'||!currentPlace||typeof loadFavorites!=='function'||typeof isFavorite!=='function')return false;
+      if(isFavorite(currentPlace))return false;
+      const favs=loadFavorites();
+      return Array.isArray(favs)&&favs.length>=FREE_FAVORITES_LIMIT;
+    }catch{return false;}
+  }
+
+  function showFavoriteGate(){
+    showGate('Favoris illimités',`La version gratuite permet jusqu’à ${FREE_FAVORITES_LIMIT} villes favorites. Aucun de tes favoris actuels n’est supprimé. Premium permettra d’en enregistrer autant que tu veux.`);
+  }
+
+  function interceptFavoriteButton(){
+    if(document.documentElement.dataset.v50FavoriteGateBound==='1')return;
+    document.documentElement.dataset.v50FavoriteGateBound='1';
+    document.addEventListener('click',e=>{
+      const button=e.target.closest('#favoriteBtn');
+      if(!button||!freeFavoriteLimitReached())return;
+      e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+      showFavoriteGate();
+    },true);
+  }
+
   function patchFavorites(){
     if(typeof window.toggleFavorite!=='function'||window.toggleFavorite.__v50PremiumPatched)return false;
     const original=window.toggleFavorite;
     const patched=function(){
-      try{
-        if(!isPremium()&&typeof currentPlace!=='undefined'&&currentPlace&&typeof loadFavorites==='function'&&typeof isFavorite==='function'&&!isFavorite(currentPlace)){
-          const favs=loadFavorites();
-          if(favs.length>=FREE_FAVORITES_LIMIT){
-            showGate('Favoris illimités',`La version gratuite permet jusqu’à ${FREE_FAVORITES_LIMIT} villes favorites. Aucun de tes favoris actuels n’est supprimé. Premium permettra d’en enregistrer autant que tu veux.`);
-            return;
-          }
-        }
-      }catch{}
+      if(freeFavoriteLimitReached()){showFavoriteGate();return;}
       return original.apply(this,arguments);
     };
     patched.__v50PremiumPatched=true;window.toggleFavorite=patched;
@@ -92,6 +108,6 @@
     apply();setTimeout(apply,700);setTimeout(apply,1800);
   }
 
-  ensureModal();patchFavorites();decorateFavorites();lockStatsClicks();lockAdvancedAlerts();decorateStats();
+  ensureModal();interceptFavoriteButton();patchFavorites();decorateFavorites();lockStatsClicks();lockAdvancedAlerts();decorateStats();
   let tries=0;const timer=setInterval(()=>{patchFavorites();decorateFavorites();lockAdvancedAlerts();decorateStats();if(++tries>12)clearInterval(timer);},500);
 })();
