@@ -17,7 +17,13 @@
     .v50-weather-marker.temp-hot{background:rgba(194,65,12,.82)}
     .v50-weather-marker.temp-mild{background:rgba(5,150,105,.82)}
     .v50-weather-marker.temp-cold{background:rgba(37,99,235,.82)}
-    @media(max-width:600px){.v50-layer-switcher{overflow-x:auto;flex-wrap:nowrap;padding-bottom:3px}.v50-layer-switcher button{flex:0 0 auto}}
+    .v50-wind-marker{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:40px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.75);font-weight:900;font-size:.68rem;white-space:nowrap;pointer-events:none}
+    .v50-wind-arrow-wrap{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:rgba(15,23,42,.64);border:1px solid rgba(255,255,255,.35);box-shadow:0 4px 13px rgba(0,0,0,.2);backdrop-filter:blur(5px)}
+    .v50-wind-arrow{font-size:1.45rem;line-height:1;display:block;transform-origin:center;animation:v50WindFlow 1.35s ease-in-out infinite}
+    .v50-wind-speed{padding:2px 5px;border-radius:999px;background:rgba(15,23,42,.62)}
+    @keyframes v50WindFlow{0%,100%{translate:0 1px;opacity:.72}50%{translate:0 -3px;opacity:1}}
+    @media(prefers-reduced-motion:reduce){.v50-wind-arrow{animation:none}}
+    @media(max-width:600px){.v50-layer-switcher{overflow-x:auto;flex-wrap:nowrap;padding-bottom:3px}.v50-layer-switcher button{flex:0 0 auto}.v50-wind-arrow-wrap{width:31px;height:31px}.v50-wind-arrow{font-size:1.3rem}}
   `;
   document.head.appendChild(css);
 
@@ -53,7 +59,10 @@
   function samplePoints(){
     const m=getMap();if(!m)return[];
     const b=m.getBounds(),south=b.getSouth(),north=b.getNorth(),west=b.getWest(),east=b.getEast();
-    const rows=3,cols=3,pts=[];
+    const zoom=Number(m.getZoom?.()||7);
+    const rows=mode==='wind'?(zoom>=9?6:5):3;
+    const cols=mode==='wind'?(zoom>=9?6:5):3;
+    const pts=[];
     for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)pts.push({lat:south+(north-south)*(r+.5)/rows,lon:west+(east-west)*(c+.5)/cols});
     return pts;
   }
@@ -66,10 +75,11 @@
     const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error('Données météo indisponibles');const d=await r.json();CACHE.set(key,{time:Date.now(),data:d.current||{}});return d.current||{};
   }
 
-  function markerHtml(d){
+  function markerHtml(d,index=0){
     if(mode==='wind'){
       const speed=Math.round(Number(d.wind_speed_10m)||0),gust=Math.round(Number(d.wind_gusts_10m)||0),dir=Number(d.wind_direction_10m)||0;
-      return `<div class="v50-weather-marker"><span class="arrow" style="transform:rotate(${dir}deg)">↑</span>${speed} km/h${gust>speed+10?` · ${gust}`:''}</div>`;
+      const delay=-((index%7)*.13).toFixed(2);
+      return `<div class="v50-wind-marker" title="Vent ${speed} km/h · rafales ${gust} km/h"><span class="v50-wind-arrow-wrap" style="transform:rotate(${dir}deg)"><span class="v50-wind-arrow" style="animation-delay:${delay}s">↑</span></span><span class="v50-wind-speed">${speed} km/h</span></div>`;
     }
     if(mode==='snow'){
       const snow=Number(d.snowfall)||0;return `<div class="v50-weather-marker snow">❄️ ${snow.toFixed(snow<1?1:0)} cm</div>`;
@@ -81,9 +91,9 @@
     const m=getMap();if(!m||!window.L)return;
     clearOverlay();overlay=L.layerGroup().addTo(m);
     const pts=samplePoints();
-    setLegend(mode==='wind'?'Vent à 10 m : vitesse, direction et rafales.':mode==='snow'?'Neige actuelle estimée sur la zone visible.':'Température actuelle sur la zone visible.');
+    setLegend(mode==='wind'?'Vent à 10 m : flèches orientées selon la direction, vitesse affichée et rafales au survol.':mode==='snow'?'Neige actuelle estimée sur la zone visible.':'Température actuelle sur la zone visible.');
     const token=Date.now();renderOverlay.token=token;
-    await Promise.all(pts.map(async p=>{try{const d=await fetchPoint(p);if(renderOverlay.token!==token||!overlay)return;if(mode==='snow'&&(Number(d.snowfall)||0)<=0)return;const icon=L.divIcon({className:'',html:markerHtml(d),iconSize:null,iconAnchor:[27,14]});L.marker([p.lat,p.lon],{icon,interactive:false}).addTo(overlay);}catch{}}));
+    await Promise.all(pts.map(async (p,index)=>{try{const d=await fetchPoint(p);if(renderOverlay.token!==token||!overlay)return;if(mode==='snow'&&(Number(d.snowfall)||0)<=0)return;const icon=L.divIcon({className:'',html:markerHtml(d,index),iconSize:null,iconAnchor:[20,20]});L.marker([p.lat,p.lon],{icon,interactive:false}).addTo(overlay);}catch{}}));
     if(mode==='snow'&&overlay&&overlay.getLayers().length===0)setLegend('❄️ Aucune chute de neige détectée actuellement sur la zone visible.');
   }
 
