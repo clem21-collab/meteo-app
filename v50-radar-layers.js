@@ -21,13 +21,8 @@
     .v50-weather-marker.temp-hot{background:rgba(194,65,12,.82)}
     .v50-weather-marker.temp-mild{background:rgba(5,150,105,.82)}
     .v50-weather-marker.temp-cold{background:rgba(37,99,235,.82)}
-    .v50-wind-marker{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:40px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.75);font-weight:900;font-size:.68rem;white-space:nowrap;pointer-events:none}
-    .v50-wind-arrow-wrap{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:rgba(15,23,42,.64);border:1px solid rgba(255,255,255,.35);box-shadow:0 4px 13px rgba(0,0,0,.2);backdrop-filter:blur(5px)}
-    .v50-wind-arrow{font-size:1.45rem;line-height:1;display:block;transform-origin:center;animation:v50WindFlow 1.35s ease-in-out infinite}
-    .v50-wind-speed{padding:2px 5px;border-radius:999px;background:rgba(15,23,42,.62)}
-    @keyframes v50WindFlow{0%,100%{translate:0 1px;opacity:.72}50%{translate:0 -3px;opacity:1}}
-    @media(prefers-reduced-motion:reduce){.v50-wind-arrow{animation:none}}
-    @media(max-width:600px){.v50-layer-switcher{overflow-x:auto;flex-wrap:nowrap;padding-bottom:3px}.v50-layer-switcher button{flex:0 0 auto}.v50-wind-arrow-wrap{width:31px;height:31px}.v50-wind-arrow{font-size:1.3rem}}
+.v50-wind-scale{display:flex;gap:8px;flex-wrap:wrap}.v50-wind-scale i{display:inline-block;width:18px;height:12px;margin-right:4px;border-radius:3px}
+
   `;
   document.head.appendChild(css);
 
@@ -57,8 +52,9 @@
     renderOverlay();
   }
 
+  function mRemoveRadar(){const m=getMap();if(m&&typeof radarLayer!=='undefined'&&radarLayer)m.removeLayer(radarLayer);}
   function setLegend(text){const el=document.getElementById('v50LayerLegend');if(el)el.textContent=text;}
-  function clearOverlay(){const m=getMap();if(m&&overlay){try{m.removeLayer(overlay);}catch{}}overlay=null;}
+  function clearOverlay(){renderOverlay.token=(renderOverlay.token||0)+1;const m=getMap();if(m&&overlay){try{m.removeLayer(overlay);}catch{}}overlay=null;}
 
   function samplePoints(){
     const m=getMap();if(!m)return[];
@@ -67,14 +63,14 @@
     const rows=mode==='wind'?(zoom>=9?6:5):3;
     const cols=mode==='wind'?(zoom>=9?6:5):3;
     const pts=[];
-    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)pts.push({lat:south+(north-south)*(r+.5)/rows,lon:west+(east-west)*(c+.5)/cols});
+    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)pts.push({lat:south+(north-south)*(r+.5)/rows,lon:west+(east-west)*(c+.5)/cols,bounds:[[south+(north-south)*r/rows,west+(east-west)*c/cols],[south+(north-south)*(r+1)/rows,west+(east-west)*(c+1)/cols]]});
     return pts;
   }
 
-  function cacheKey(p){return`${p.lat.toFixed(3)},${p.lon.toFixed(3)}`;}
-  function usableCurrent(d){
+  function cacheKey(p){return`${mode}:${p.lat.toFixed(3)},${p.lon.toFixed(3)}`;}
+  function usableCurrent(d,layerMode=mode){
     if(!d||typeof d!=='object')return false;
-    return [d.temperature_2m,d.snowfall,d.wind_speed_10m,d.wind_direction_10m,d.wind_gusts_10m].some(v=>Number.isFinite(Number(v)));
+    return layerMode==='wind'?validWind(d):[d.temperature_2m,d.snowfall].some(validNumber);
   }
 
   async function requestBatch(points,url,model){
@@ -83,7 +79,8 @@
     u.searchParams.set('latitude',points.map(p=>p.lat.toFixed(5)).join(','));
     u.searchParams.set('longitude',points.map(p=>p.lon.toFixed(5)).join(','));
     u.searchParams.set('timezone','auto');
-    u.searchParams.set('current','temperature_2m,snowfall,wind_speed_10m,wind_direction_10m,wind_gusts_10m');
+    u.searchParams.set('wind_speed_unit','kmh');
+    u.searchParams.set('current','temperature_2m,snowfall,wind_speed_10m,wind_gusts_10m');
     if(model)u.searchParams.set('models',model);
     const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error(`Météo HTTP ${r.status}`);
     const json=await r.json(),arr=Array.isArray(json)?json:[json];
@@ -91,6 +88,7 @@
   }
 
   async function fetchPoints(points){
+    const requestedMode=mode;
     const out=new Array(points.length),missing=[];
     points.forEach((p,i)=>{const hit=CACHE.get(cacheKey(p));if(hit&&Date.now()-hit.time<10*60*1000)out[i]=hit.data;else missing.push({p,i});});
     if(!missing.length)return out;
@@ -100,7 +98,7 @@
     const second=[];
     missing.forEach((entry,j)=>{
       const d=primary[j];
-      if(usableCurrent(d)){out[entry.i]={...d,_source:'AROME France HD'};}
+      if(usableCurrent(d,requestedMode)){out[entry.i]={...d,_source:'AROME France HD'};}
       else second.push(entry);
     });
 
@@ -109,7 +107,7 @@
     const third=[];
     second.forEach((entry,j)=>{
       const d=seamless[j];
-      if(usableCurrent(d)){out[entry.i]={...d,_source:'Météo-France'};}
+      if(usableCurrent(d,requestedMode)){out[entry.i]={...d,_source:'Météo-France'};}
       else third.push(entry);
     });
 
@@ -117,17 +115,25 @@
     if(third.length){try{generic=await requestBatch(third.map(x=>x.p),GENERIC_URL,null);}catch{}}
     third.forEach((entry,j)=>{const d=generic[j]||{};out[entry.i]={...d,_source:'Open-Meteo secours'};});
 
-    missing.forEach(entry=>{const d=out[entry.i]||{};CACHE.set(cacheKey(entry.p),{time:Date.now(),data:d});});
+    if(mode!==requestedMode)return out;
+    if(CACHE.size>500)CACHE.clear();
+    missing.forEach(entry=>{const d=out[entry.i]||{};if(!usableCurrent(d))return;CACHE.set(cacheKey(entry.p),{time:Date.now(),data:d});});
     return out;
   }
 
+  const WIND_STOPS=[[0,'#2563eb','0–19'],[20,'#22c55e','20–39'],[40,'#facc15','40–59'],[60,'#f97316','60–79'],[80,'#ef4444','80–99'],[100,'#a855f7','100+']];
+  function validNumber(v){return typeof v==='number'&&Number.isFinite(v);}
+  function validWind(d){return validNumber(d?.wind_speed_10m)&&d.wind_speed_10m>=0;}
+  function windColor(speed){return [...WIND_STOPS].reverse().find(([min])=>speed>=min)[1];}
+  function windLegend(data){
+    const el=document.getElementById('v50LayerLegend');if(!el)return;
+    const valid=data.filter(validWind),sources=[...new Set(valid.map(d=>d._source))].join(' / ');
+    el.textContent=valid.length?'Vent moyen à 10 m • '+sources+' via Open-Meteo • zones échantillonnées ('+valid.length+'/'+data.length+'), toucher pour les détails. ':'Vent indisponible sur cette zone. Réessaie dans quelques instants. ';
+    const scale=document.createElement('div');scale.className='v50-wind-scale';scale.setAttribute('aria-label','Vent moyen en km/h');
+    scale.innerHTML=WIND_STOPS.map(([,color,label])=>'<span><i style="background:'+color+'"></i>'+label+' km/h</span>').join('');el.appendChild(scale);
+  }
+
   function markerHtml(d,index=0){
-    if(mode==='wind'){
-      const speed=Math.round(Number(d.wind_speed_10m)||0),gust=Math.round(Number(d.wind_gusts_10m)||0),dir=Number(d.wind_direction_10m)||0;
-      const delay=-((index%7)*.13).toFixed(2);
-      const source=d._source||'Météo-France';
-      return `<div class="v50-wind-marker" title="${source} · vent ${speed} km/h · rafales ${gust} km/h"><span class="v50-wind-arrow-wrap" style="transform:rotate(${dir}deg)"><span class="v50-wind-arrow" style="animation-delay:${delay}s">↑</span></span><span class="v50-wind-speed">${speed} km/h</span></div>`;
-    }
     if(mode==='snow'){
       const snow=Number(d.snowfall)||0;return `<div class="v50-weather-marker snow">❄️ ${snow.toFixed(snow<1?1:0)} cm</div>`;
     }
@@ -139,7 +145,7 @@
     clearOverlay();overlay=L.layerGroup().addTo(m);
     const pts=samplePoints();
     setLegend(mode==='wind'?'Chargement du vent Météo-France AROME HD…':mode==='snow'?'Chargement de la neige Météo-France…':'Chargement de la température Météo-France…');
-    const token=Date.now();renderOverlay.token=token;
+    const token=renderOverlay.token;
     const data=await fetchPoints(pts).catch(()=>pts.map(()=>({})));
     if(renderOverlay.token!==token||!overlay)return;
     let aromeCount=0;
@@ -147,10 +153,18 @@
       if(d?._source==='AROME France HD')aromeCount++;
       if(mode==='snow'&&(Number(d?.snowfall)||0)<=0)return;
       if(!usableCurrent(d))return;
-      const p=pts[index],icon=L.divIcon({className:'',html:markerHtml(d,index),iconSize:null,iconAnchor:[20,20]});
+      const p=pts[index];
+      if(mode==='wind'){
+        if(!validWind(d))return;
+        const gust=validNumber(d.wind_gusts_10m)?Math.round(d.wind_gusts_10m)+' km/h':'indisponibles';
+        L.rectangle(p.bounds,{stroke:false,fillColor:windColor(d.wind_speed_10m),fillOpacity:.48,interactive:true,bubblingMouseEvents:false})
+          .bindPopup('<strong>Vent moyen : '+Math.round(d.wind_speed_10m)+' km/h</strong><br>Rafales : '+gust+'<br>'+d._source+'<br>Prévision : '+(d.time||'heure indisponible')+'<br><small>Zone échantillonnée • vent à 10 m</small>').addTo(overlay);
+        return;
+      }
+      const icon=L.divIcon({className:'',html:markerHtml(d,index),iconSize:null,iconAnchor:[20,20]});
       L.marker([p.lat,p.lon],{icon,interactive:false}).addTo(overlay);
     });
-    if(mode==='wind')setLegend(aromeCount?`💨 Vent Météo-France • AROME France HD (~1,5 km) • ${aromeCount}/${pts.length} points HD`:'💨 Vent Météo-France • modèle de secours utilisé sur cette zone.');
+    if(mode==='wind')windLegend(data);
     else if(mode==='snow'&&overlay&&overlay.getLayers().length===0)setLegend('❄️ Aucune chute de neige détectée actuellement sur la zone visible.');
     else if(mode==='snow')setLegend('❄️ Neige actuelle • données Météo-France AROME.');
     else setLegend('🌡️ Température actuelle • données Météo-France AROME.');
