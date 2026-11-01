@@ -4,6 +4,10 @@
   let mode='rain';
   let refreshTimer=null;
   const CACHE=new Map();
+  const METEOFRANCE_URL='https://api.open-meteo.com/v1/meteofrance';
+  const GENERIC_URL='https://api.open-meteo.com/v1/forecast';
+  const AROME_HD='meteofrance_arome_france_hd';
+  const METEOFRANCE_SEAMLESS='meteofrance_seamless';
 
   const css=document.createElement('style');
   css.textContent=`
@@ -67,19 +71,62 @@
     return pts;
   }
 
-  async function fetchPoint(p){
-    const key=`${p.lat.toFixed(2)},${p.lon.toFixed(2)}`;const hit=CACHE.get(key);if(hit&&Date.now()-hit.time<10*60*1000)return hit.data;
-    const u=new URL('https://api.open-meteo.com/v1/forecast');
-    u.searchParams.set('latitude',p.lat);u.searchParams.set('longitude',p.lon);u.searchParams.set('timezone','auto');
+  function cacheKey(p){return`${p.lat.toFixed(3)},${p.lon.toFixed(3)}`;}
+  function usableCurrent(d){
+    if(!d||typeof d!=='object')return false;
+    return [d.temperature_2m,d.snowfall,d.wind_speed_10m,d.wind_direction_10m,d.wind_gusts_10m].some(v=>Number.isFinite(Number(v)));
+  }
+
+  async function requestBatch(points,url,model){
+    if(!points.length)return[];
+    const u=new URL(url);
+    u.searchParams.set('latitude',points.map(p=>p.lat.toFixed(5)).join(','));
+    u.searchParams.set('longitude',points.map(p=>p.lon.toFixed(5)).join(','));
+    u.searchParams.set('timezone','auto');
     u.searchParams.set('current','temperature_2m,snowfall,wind_speed_10m,wind_direction_10m,wind_gusts_10m');
-    const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error('Données météo indisponibles');const d=await r.json();CACHE.set(key,{time:Date.now(),data:d.current||{}});return d.current||{};
+    if(model)u.searchParams.set('models',model);
+    const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error(`Météo HTTP ${r.status}`);
+    const json=await r.json(),arr=Array.isArray(json)?json:[json];
+    return points.map((p,i)=>arr[i]?.current||{});
+  }
+
+  async function fetchPoints(points){
+    const out=new Array(points.length),missing=[];
+    points.forEach((p,i)=>{const hit=CACHE.get(cacheKey(p));if(hit&&Date.now()-hit.time<10*60*1000)out[i]=hit.data;else missing.push({p,i});});
+    if(!missing.length)return out;
+
+    let primary=[];
+    try{primary=await requestBatch(missing.map(x=>x.p),METEOFRANCE_URL,AROME_HD);}catch{}
+    const second=[];
+    missing.forEach((entry,j)=>{
+      const d=primary[j];
+      if(usableCurrent(d)){out[entry.i]={...d,_source:'AROME France HD'};}
+      else second.push(entry);
+    });
+
+    let seamless=[];
+    if(second.length){try{seamless=await requestBatch(second.map(x=>x.p),METEOFRANCE_URL,METEOFRANCE_SEAMLESS);}catch{}}
+    const third=[];
+    second.forEach((entry,j)=>{
+      const d=seamless[j];
+      if(usableCurrent(d)){out[entry.i]={...d,_source:'Météo-France'};}
+      else third.push(entry);
+    });
+
+    let generic=[];
+    if(third.length){try{generic=await requestBatch(third.map(x=>x.p),GENERIC_URL,null);}catch{}}
+    third.forEach((entry,j)=>{const d=generic[j]||{};out[entry.i]={...d,_source:'Open-Meteo secours'};});
+
+    missing.forEach(entry=>{const d=out[entry.i]||{};CACHE.set(cacheKey(entry.p),{time:Date.now(),data:d});});
+    return out;
   }
 
   function markerHtml(d,index=0){
     if(mode==='wind'){
       const speed=Math.round(Number(d.wind_speed_10m)||0),gust=Math.round(Number(d.wind_gusts_10m)||0),dir=Number(d.wind_direction_10m)||0;
       const delay=-((index%7)*.13).toFixed(2);
-      return `<div class="v50-wind-marker" title="Vent ${speed} km/h · rafales ${gust} km/h"><span class="v50-wind-arrow-wrap" style="transform:rotate(${dir}deg)"><span class="v50-wind-arrow" style="animation-delay:${delay}s">↑</span></span><span class="v50-wind-speed">${speed} km/h</span></div>`;
+      const source=d._source||'Météo-France';
+      return `<div class="v50-wind-marker" title="${source} · vent ${speed} km/h · rafales ${gust} km/h"><span class="v50-wind-arrow-wrap" style="transform:rotate(${dir}deg)"><span class="v50-wind-arrow" style="animation-delay:${delay}s">↑</span></span><span class="v50-wind-speed">${speed} km/h</span></div>`;
     }
     if(mode==='snow'){
       const snow=Number(d.snowfall)||0;return `<div class="v50-weather-marker snow">❄️ ${snow.toFixed(snow<1?1:0)} cm</div>`;
@@ -91,10 +138,22 @@
     const m=getMap();if(!m||!window.L)return;
     clearOverlay();overlay=L.layerGroup().addTo(m);
     const pts=samplePoints();
-    setLegend(mode==='wind'?'Vent à 10 m : flèches orientées selon la direction, vitesse affichée et rafales au survol.':mode==='snow'?'Neige actuelle estimée sur la zone visible.':'Température actuelle sur la zone visible.');
+    setLegend(mode==='wind'?'Chargement du vent Météo-France AROME HD…':mode==='snow'?'Chargement de la neige Météo-France…':'Chargement de la température Météo-France…');
     const token=Date.now();renderOverlay.token=token;
-    await Promise.all(pts.map(async (p,index)=>{try{const d=await fetchPoint(p);if(renderOverlay.token!==token||!overlay)return;if(mode==='snow'&&(Number(d.snowfall)||0)<=0)return;const icon=L.divIcon({className:'',html:markerHtml(d,index),iconSize:null,iconAnchor:[20,20]});L.marker([p.lat,p.lon],{icon,interactive:false}).addTo(overlay);}catch{}}));
-    if(mode==='snow'&&overlay&&overlay.getLayers().length===0)setLegend('❄️ Aucune chute de neige détectée actuellement sur la zone visible.');
+    const data=await fetchPoints(pts).catch(()=>pts.map(()=>({})));
+    if(renderOverlay.token!==token||!overlay)return;
+    let aromeCount=0;
+    data.forEach((d,index)=>{
+      if(d?._source==='AROME France HD')aromeCount++;
+      if(mode==='snow'&&(Number(d?.snowfall)||0)<=0)return;
+      if(!usableCurrent(d))return;
+      const p=pts[index],icon=L.divIcon({className:'',html:markerHtml(d,index),iconSize:null,iconAnchor:[20,20]});
+      L.marker([p.lat,p.lon],{icon,interactive:false}).addTo(overlay);
+    });
+    if(mode==='wind')setLegend(aromeCount?`💨 Vent Météo-France • AROME France HD (~1,5 km) • ${aromeCount}/${pts.length} points HD`:'💨 Vent Météo-France • modèle de secours utilisé sur cette zone.');
+    else if(mode==='snow'&&overlay&&overlay.getLayers().length===0)setLegend('❄️ Aucune chute de neige détectée actuellement sur la zone visible.');
+    else if(mode==='snow')setLegend('❄️ Neige actuelle • données Météo-France AROME.');
+    else setLegend('🌡️ Température actuelle • données Météo-France AROME.');
   }
 
   function bindMap(){
