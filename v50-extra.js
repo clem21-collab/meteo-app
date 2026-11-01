@@ -30,3 +30,11 @@
   };
   inject();setTimeout(inject,700);setTimeout(inject,1800);
 })();
+
+(function loadPremiumGates(){
+  if(document.querySelector('script[data-v50-premium-gates]'))return;
+  const s=document.createElement('script');
+  s.src='v50-premium-gates.js?v=5.0.1';
+  s.setAttribute('data-v50-premium-gates','1');
+  document.body.appendChild(s);
+})();
