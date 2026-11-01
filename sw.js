@@ -1,4 +1,4 @@
-const CACHE='meteo-v5-0-advanced-radar-layers';
+const CACHE='meteo-v5-0-animated-wind-layer';
 const LOCAL_ASSETS=['./','./index.html','./privacy.html','./style.css','./app.js','./push-client.js','./v34.js','./v34.css','./v35.js','./v35.css','./v36.js','./v36.css','./v37.js','./v37.css','./v38.js','./v38.css','./v40.js','./v41.js','./v41.css','./v42.js','./v42.css','./v43.js','./v43.css','./v44.js','./v44.css','./v45.js','./v45.css','./v46.js','./v46.css','./v50.js','./v50.css','./v50-patch.js','./v50-runtime.js','./v50-extra.js','./v50-premium-gates.js','./v50-radar-layers.js','./manifest.webmanifest','./icon.svg'];
 
 self.addEventListener('install',event=>{
