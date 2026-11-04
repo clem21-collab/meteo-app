@@ -91,7 +91,7 @@ function stopMfAnimation(){
 
 async function fetchMfMeta(force=false){
   if(mfForecastMeta&&!force)return mfForecastMeta;
-  const response=await fetch(`${V35_BACKEND}/mf-nowcast/meta${force?'?refresh=1':''}`,{cache:'no-store'});
+  const response=await fetch(`${V35_BACKEND}/mf-nowcast/meta${force?'?refresh=1':''}`,{cache:'no-store',signal:AbortSignal.timeout(7000)});
   let data={};
   try{data=await response.json();}catch{}
   if(!response.ok||!data.ok)throw new Error(data.error||`Météo-France indisponible (${response.status})`);
@@ -101,6 +101,7 @@ async function fetchMfMeta(force=false){
 }
 
 async function showMeteoFranceForecast(force=false){
+  if(window.meteoRadarShowsRain?.()===false)return;
   mfForecastMode=true;
   stopObservedAnimation();stopMfAnimation();
   setRadarModeButtons(true);setForecastUiVisible(true);
@@ -108,6 +109,7 @@ async function showMeteoFranceForecast(force=false){
   if(status)status.textContent='Chargement des prévisions Météo-France…';
   try{
     const meta=await fetchMfMeta(force);
+    if(window.meteoRadarShowsRain?.()===false)return;
     const slider=document.getElementById('mfForecastSlider');
     slider.max=String(Math.max(0,meta.frames.length-1));
     let first=meta.frames.findIndex(f=>Number(f.minutes)>=0);
@@ -136,7 +138,7 @@ function localHour(iso){
 }
 
 async function showMfFrame(index){
-  if(!mfForecastMode||!mfForecastMeta||typeof L==='undefined'||typeof map==='undefined'||!map)return;
+  if(window.meteoRadarShowsRain?.()===false||!mfForecastMode||!mfForecastMeta||typeof L==='undefined'||typeof map==='undefined'||!map)return;
   const frames=mfForecastMeta.frames||[];
   index=Math.max(0,Math.min(frames.length-1,index));
   const frame=frames[index];if(!frame)return;

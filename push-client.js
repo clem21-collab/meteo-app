@@ -56,10 +56,10 @@ function loadEnhancement(src,dataKey,onload){return new Promise(resolve=>{const 
 
 (async()=>{
   await loadEnhancement('v34.js?v=3.4','data-v34',()=>{const duplicate=document.getElementById('alertHours');if(duplicate&&document.getElementById('leadHours'))duplicate.closest('.setting-block')?.remove();});
-  await loadEnhancement('v35.js?v=3.5','data-v35');
-  await loadEnhancement('v36.js?v=3.6','data-v36');
-  await loadEnhancement('v37.js?v=3.7','data-v37');
-  await loadEnhancement('v38.js?v=3.9','data-v38');
+  await loadEnhancement('v35.js?v=3.5.2','data-v35');
+  await loadEnhancement('v36.js?v=3.6.2','data-v36');
+  await loadEnhancement('v37.js?v=3.7.1','data-v37');
+  await loadEnhancement('v38.js?v=3.9.1','data-v38');
   await loadEnhancement('v40.js?v=4.0','data-v40');
   await loadEnhancement('v41.js?v=4.1','data-v41');
   await loadEnhancement('v42.js?v=4.2','data-v42');
@@ -67,7 +67,7 @@ function loadEnhancement(src,dataKey,onload){return new Promise(resolve=>{const 
   await loadEnhancement('v44.js?v=4.4','data-v44');
   await loadEnhancement('v45.js?v=4.5','data-v45');
   await loadEnhancement('v46.js?v=4.6.1','data-v46');
-  await loadEnhancement('v50.js?v=5.0.3','data-v50');
+  await loadEnhancement('v50.js?v=5.0.5','data-v50');
   await loadEnhancement('v50-patch.js?v=5.0','data-v50-patch');
   await loadEnhancement('v50-runtime.js?v=5.0.3','data-v50-runtime');
   await loadEnhancement('v50-extra.js?v=5.0','data-v50-extra');

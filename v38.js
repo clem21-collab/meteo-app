@@ -88,7 +88,7 @@ function patchFullscreenTimeline(){
     const original=window.showUnifiedFrame;
     window.showUnifiedFrame=async function(index){
       const result=await original(index);
-      syncFullscreenTimeline(Number(index));
+      if(result)syncFullscreenTimeline(Number(index));
       return result;
     };
   }
