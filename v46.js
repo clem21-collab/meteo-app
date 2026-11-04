@@ -188,6 +188,7 @@ function injectV46StatsTab(){
 }
 
 function switchV46Tab(name){
+  if(name==='stats'&&!window.meteoPremium?.isActive())return;
   document.querySelectorAll('.tab-panel').forEach(p=>{const active=p.id===`panel-${name}`;p.classList.toggle('active',active);p.hidden=!active;});
   document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
   document.querySelectorAll('.mobile-bottom-nav [data-mobile-tab]').forEach(b=>b.classList.toggle('active',b.dataset.mobileTab===name));
@@ -212,6 +213,7 @@ async function fetchV46Stats(force=false){
 }
 
 async function refreshV46Stats(force=false){
+  if(!window.meteoPremium?.isActive())return;
   const cards=document.getElementById('v46StatsCards');if(cards)cards.innerHTML='<div class="empty-state">Chargement des 30 derniers jours…</div>';
   try{const data=await fetchV46Stats(force);renderV46Stats(data);}catch(error){console.error('V4.6 stats',error);if(cards)cards.innerHTML='<div class="empty-state">Impossible de charger les statistiques pour le moment.</div>';}
 }

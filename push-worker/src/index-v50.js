@@ -1,4 +1,5 @@
 import base from "./index-v41.js";
+import { creatorEntitlement, creatorRevision, creatorRoute } from "./creator.js";
 import webpush from "web-push";
 
 const SUB_KEY = "subscription:advanced-v50";
@@ -22,7 +23,7 @@ async function saveSubscription(request,env){
     smartWind:s.smartWind!==false,windThreshold:clamp(s.windThreshold,30,150,60),
     smartStorm:s.smartStorm!==false,smartLeadHours:clamp(s.smartLeadHours||s.leadHours,1,12,6),
     quiet:s.quiet===true,quietStart:String(s.quietStart||"22:00").slice(0,5),quietEnd:String(s.quietEnd||"07:00").slice(0,5)
-  },updatedAt:Date.now()};
+  },creatorRevision:await creatorRevision(env),updatedAt:Date.now()};
   if(Number.isFinite(record.latitude)&&Number.isFinite(record.longitude))await env.PUSH_KV.put(SUB_KEY,JSON.stringify(record));
 }
 
@@ -37,7 +38,7 @@ async function markSent(env,type,fingerprint,cooldownMs){const now=Date.now();aw
 async function alertOnce(env,record,type,fingerprint,payload,cooldownMs=6*3600000){if(!(await shouldSend(env,type,fingerprint,cooldownMs)))return;const sent=await sendPush(env,record,payload);if(sent)await markSent(env,type,fingerprint,cooldownMs);}
 
 async function checkV50Alerts(env){
-  const record=await env.PUSH_KV.get(SUB_KEY,"json");if(!record?.subscription)return;
+  const record=await env.PUSH_KV.get(SUB_KEY,"json");if(!record?.subscription||!record.creatorRevision||record.creatorRevision!==await creatorRevision(env))return;
   const data=await fetchForecast(record);if(isQuiet(record,data?.current?.time))return;
   const h=data?.hourly;if(!h?.time?.length)return;const start=firstFutureIndex(data),lead=clamp(record.settings?.smartLeadHours,1,12,6),app=env.APP_URL||"https://clem21-collab.github.io/meteo-app/";
   const tasks=[];
@@ -54,6 +55,37 @@ async function checkV50Alerts(env){
 }
 
 export default{
-  async fetch(request,env,ctx){const url=new URL(request.url);try{if(request.method==="POST"&&url.pathname==="/subscribe")await saveSubscription(request,env);if(request.method==="POST"&&url.pathname==="/unsubscribe"){await env.PUSH_KV.delete(SUB_KEY);for(const type of ["frost","heat","wind","storm"])await env.PUSH_KV.delete(`${STATE_PREFIX}${type}`);}}catch(error){console.warn("V5 subscription extension",error?.message||error);}return base.fetch(request,env,ctx);},
+  async fetch(request,env,ctx){
+    const {pathname}=new URL(request.url);
+    if(pathname.startsWith("/creator/"))return creatorRoute(request,env,pathname);
+    if(request.method==="OPTIONS"&&pathname==="/subscribe"&&request.headers.get("Origin")===env.APP_ORIGIN){
+      return new Response(null,{status:204,headers:{
+        "Access-Control-Allow-Origin":env.APP_ORIGIN,
+        "Access-Control-Allow-Methods":"POST, OPTIONS",
+        "Access-Control-Allow-Headers":"Content-Type, Authorization",
+        "Vary":"Origin"
+      }});
+    }
+    try{
+      if(request.method==="POST"&&pathname==="/subscribe"){
+        if(await creatorEntitlement(request,env)){
+          await saveSubscription(request,env);
+        }else{
+          const body=await request.clone().json();
+          body.settings={...body.settings,windThreshold:60};
+          request=new Request(request.url,{method:"POST",headers:request.headers,body:JSON.stringify(body)});
+        }
+      }
+      if(request.method==="POST"&&pathname==="/unsubscribe"&&await creatorEntitlement(request,env)){
+        const body=await request.clone().json();
+        const record=await env.PUSH_KV.get(SUB_KEY,"json");
+        if(record?.subscription?.endpoint&&record.subscription.endpoint===body.endpoint){
+          await env.PUSH_KV.delete(SUB_KEY);
+          for(const type of ["frost","heat","wind","storm"])await env.PUSH_KV.delete(`${STATE_PREFIX}${type}`);
+        }
+      }
+    }catch(error){console.warn("V5 subscription extension",error?.message||error);}
+    return base.fetch(request,env,ctx);
+  },
   async scheduled(controller,env,ctx){if(typeof base.scheduled==="function")base.scheduled(controller,env,ctx);ctx.waitUntil(checkV50Alerts(env));}
 };

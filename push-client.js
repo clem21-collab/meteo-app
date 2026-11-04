@@ -38,7 +38,7 @@ async function registerAutomaticPush(showConfirmation=true){
   if(Notification.permission!=='granted')throw new Error('Les notifications sont bloquées dans les paramètres du site.');
   const cr=await fetch(`${PUSH_BACKEND}/config`,{cache:'no-store'});if(!cr.ok)throw new Error('Le serveur de notifications n’est pas encore prêt.');const config=await cr.json();if(!config.vapidPublicKey)throw new Error('La clé publique VAPID est absente du serveur.');
   const registration=await navigator.serviceWorker.ready;let subscription=await registration.pushManager.getSubscription();if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:vapidKeyToUint8Array(config.vapidPublicKey)});
-  const response=await fetch(`${PUSH_BACKEND}/subscribe`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription:subscription.toJSON(),latitude:currentPlace.latitude,longitude:currentPlace.longitude,city:currentPlace.name,department:currentPlace.departmentCode||'',settings:syncAdvancedControlsToStorage(),confirm:showConfirmation})});
+  const response=await fetch(`${PUSH_BACKEND}/subscribe`,{method:'POST',headers:{'Content-Type':'application/json',...window.meteoPremium?.requestHeaders()},body:JSON.stringify({subscription:subscription.toJSON(),latitude:currentPlace.latitude,longitude:currentPlace.longitude,city:currentPlace.name,department:currentPlace.departmentCode||'',settings:syncAdvancedControlsToStorage(),confirm:showConfirmation})});
   if(!response.ok)throw new Error('Impossible d’enregistrer ce téléphone pour les alertes automatiques.');
   const state=document.getElementById('notificationState'),button=document.getElementById('notificationBtn');if(state)state.textContent='Notifications automatiques activées';if(button)button.textContent='Réenregistrer les alertes';return true;
 }
@@ -66,9 +66,9 @@ function loadEnhancement(src,dataKey,onload){return new Promise(resolve=>{const 
   await loadEnhancement('v43.js?v=4.3','data-v43');
   await loadEnhancement('v44.js?v=4.4','data-v44');
   await loadEnhancement('v45.js?v=4.5','data-v45');
-  await loadEnhancement('v46.js?v=4.6','data-v46');
-  await loadEnhancement('v50.js?v=5.0','data-v50');
+  await loadEnhancement('v46.js?v=4.6.1','data-v46');
+  await loadEnhancement('v50.js?v=5.0.3','data-v50');
   await loadEnhancement('v50-patch.js?v=5.0','data-v50-patch');
-  await loadEnhancement('v50-runtime.js?v=5.0','data-v50-runtime');
+  await loadEnhancement('v50-runtime.js?v=5.0.3','data-v50-runtime');
   await loadEnhancement('v50-extra.js?v=5.0','data-v50-extra');
 })();

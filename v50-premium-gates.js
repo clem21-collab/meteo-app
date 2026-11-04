@@ -1,8 +1,85 @@
-// Météo V5 — Premium preview gates. No real purchase flow yet.
+// Météo V5 — accès Premium vérifié par le Worker.
 (function initV50PremiumGates(){
-  const PREMIUM_KEY='meteo-app-premium-active-v1';
+  const TOKEN_KEY='meteo-creator-device-v1';
   const FREE_FAVORITES_LIMIT=3;
-  const isPremium=()=>localStorage.getItem(PREMIUM_KEY)==='1';
+  const form=document.getElementById('creatorForm');
+  const input=document.getElementById('creatorCode');
+  const status=document.getElementById('creatorStatus');
+  const disconnect=document.getElementById('creatorDisconnect');
+  const readToken=()=>{try{return localStorage.getItem(TOKEN_KEY)||'';}catch{return '';}};
+  let token=readToken(),active=false,attempt=0;
+  const isPremium=()=>active;
+  const authorization=value=>({'Authorization':'Bearer '+value});
+  window.meteoPremium=Object.freeze({
+    isActive:isPremium,
+    requestHeaders:()=>active?authorization(token):{}
+  });
+
+  function setAccess(value){
+    const changed=active!==value;
+    active=value;
+    disconnect.hidden=!token;
+    status.textContent=value?'Accès Créateur actif • Premium inclus':'';
+    updateControls();
+    if(!value&&document.getElementById('panel-stats')?.hidden===false){
+      switchTab('weather');
+    }
+    if(changed&&typeof refreshV50PredictiveAlerts==='function')refreshV50PredictiveAlerts();
+  }
+
+  async function verify(){
+    if(!token||form.querySelector('[type=submit]').disabled)return;
+    const id=++attempt;
+    try{
+      const response=await fetch(PUSH_BACKEND+'/creator/status',{
+        method:'POST',headers:authorization(token),cache:'no-store',signal:AbortSignal.timeout(8000)
+      });
+      const verified=response.ok&&(await response.json()).premium===true;
+      if(id===attempt)setAccess(verified);
+    }catch{if(id===attempt)setAccess(false);}
+  }
+
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();
+    const code=input.value.trim();
+    input.value='';
+    const id=++attempt,button=form.querySelector('[type=submit]');
+    button.disabled=true;
+    try{
+      const response=await fetch(PUSH_BACKEND+'/creator/pair',{
+        method:'POST',body:code,cache:'no-store',signal:AbortSignal.timeout(8000)
+      });
+      if(id!==attempt)return;
+      if(response.status===401){status.textContent='Code Créateur incorrect.';return;}
+      if(!response.ok)throw Error();
+      const result=await response.json();
+      if(id!==attempt)return;
+      if(result.premium!==true||!/^[a-f0-9]{64}\.[a-f0-9]{64}$/.test(result.token))throw Error();
+      token=result.token;
+      try{localStorage.setItem(TOKEN_KEY,token);}catch{}
+      setAccess(true);
+    }catch{if(id===attempt)status.textContent='Association indisponible. Réessaie en ligne.';}
+    finally{button.disabled=false;}
+  });
+
+  disconnect.addEventListener('click',()=>{
+    attempt++;
+    token='';
+    try{localStorage.removeItem(TOKEN_KEY);}catch{}
+    setAccess(false);
+  });
+  window.addEventListener('storage',event=>{
+    if(event.key!==TOKEN_KEY&&event.key!==null)return;
+    attempt++;
+    token=readToken();
+    setAccess(false);
+    verify();
+  });
+  window.addEventListener('online',verify);
+  window.addEventListener('offline',()=>{attempt++;setAccess(false);});
+  window.addEventListener('pageshow',verify);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)verify();});
+  setInterval(()=>{if(!document.hidden)verify();},60000);
 
   const css=document.createElement('style');
   css.textContent=`
@@ -50,27 +127,11 @@
     showGate('Favoris illimités',`La version gratuite permet jusqu’à ${FREE_FAVORITES_LIMIT} villes favorites. Aucun de tes favoris actuels n’est supprimé. Premium permettra d’en enregistrer autant que tu veux.`);
   }
 
-  function interceptFavoriteButton(){
-    if(document.documentElement.dataset.v50FavoriteGateBound==='1')return;
-    document.documentElement.dataset.v50FavoriteGateBound='1';
-    document.addEventListener('click',e=>{
-      const button=e.target.closest('#favoriteBtn');
-      if(!button||!freeFavoriteLimitReached())return;
-      e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
-      showFavoriteGate();
-    },true);
-  }
-
-  function patchFavorites(){
-    if(typeof window.toggleFavorite!=='function'||window.toggleFavorite.__v50PremiumPatched)return false;
-    const original=window.toggleFavorite;
-    const patched=function(){
-      if(freeFavoriteLimitReached()){showFavoriteGate();return;}
-      return original.apply(this,arguments);
-    };
-    patched.__v50PremiumPatched=true;window.toggleFavorite=patched;
-    return true;
-  }
+  window.meteoCanAddFavorite=()=>{
+    if(!freeFavoriteLimitReached())return true;
+    showFavoriteGate();
+    return false;
+  };
 
   function decorateFavorites(){
     const panel=document.getElementById('panel-favorites');if(!panel||document.getElementById('v50FreeFavLimit'))return;
@@ -88,26 +149,45 @@
     },true);
   }
 
-  function lockAdvancedAlerts(){
-    const apply=()=>{
-      if(isPremium())return;
-      const wind=document.getElementById('windThreshold');
-      if(wind&&!wind.dataset.premiumLocked){wind.dataset.premiumLocked='1';wind.disabled=true;wind.closest('label')?.classList.add('v50-premium-locked-control');}
-      const advancedIds=['v50FrostThreshold','v50HeatThreshold','v50SmartLeadHours'];
-      advancedIds.forEach(id=>{const el=document.getElementById(id);if(el&&!el.dataset.premiumLocked){el.dataset.premiumLocked='1';el.disabled=true;el.closest('label')?.classList.add('v50-premium-locked-control');}});
-      ['v50Frost','v50Heat','v50SmartWind','v50SmartStorm'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.dataset.premiumLocked){el.dataset.premiumLocked='1';el.disabled=true;el.closest('label')?.classList.add('v50-premium-locked-control');}});
-      document.querySelectorAll('.v50-premium-locked-control').forEach(row=>{if(!row.dataset.gateBound){row.dataset.gateBound='1';row.addEventListener('click',e=>{if(e.target.matches('input,select'))e.preventDefault();showGate('Alertes personnalisées avancées','Les alertes météo importantes restent gratuites. Premium permettra de personnaliser précisément les seuils de vent, gel, chaleur et l’anticipation des alertes.');});}});
-    };
-    apply();setTimeout(apply,700);setTimeout(apply,1800);
+  function updateControls(){
+    const locked=!isPremium();
+    const ids=['windThreshold','v50FrostThreshold','v50HeatThreshold','v50SmartLead',
+      'v50Frost','v50Heat','v50SmartWind','v50SmartStorm','v50Quiet','v50QuietStart','v50QuietEnd','v50SavePush'];
+    for(const id of ids){
+      const el=document.getElementById(id);
+      if(!el)continue;
+      el.disabled=locked;
+      el.closest('label')?.classList.toggle('v50-premium-locked-control',locked);
+    }
+    document.querySelectorAll('[data-tab="stats"],[data-mobile-tab="stats"]').forEach(button=>{
+      const badge=button.querySelector('.v50-premium-lock');
+      if(!locked){badge?.remove();return;}
+      if(badge)return;
+      const span=document.createElement('span');
+      span.className='v50-premium-lock';
+      span.textContent='🔒';
+      button.appendChild(span);
+    });
+    const note=document.getElementById('v50FreeFavLimit');
+    if(note)note.hidden=!locked;
   }
 
-  function decorateStats(){
-    const apply=()=>{
-      document.querySelectorAll('[data-tab="stats"],[data-mobile-tab="stats"]').forEach(b=>{if(!b.querySelector('.v50-premium-lock')){const s=document.createElement('span');s.className='v50-premium-lock';s.textContent='🔒';b.appendChild(s);}});
-    };
-    apply();setTimeout(apply,700);setTimeout(apply,1800);
-  }
-
-  ensureModal();interceptFavoriteButton();patchFavorites();decorateFavorites();lockStatsClicks();lockAdvancedAlerts();decorateStats();
-  let tries=0;const timer=setInterval(()=>{patchFavorites();decorateFavorites();lockAdvancedAlerts();decorateStats();if(++tries>12)clearInterval(timer);},500);
+  document.addEventListener('click',event=>{
+    if(isPremium()||!event.target.closest('.v50-premium-locked-control'))return;
+    event.preventDefault();
+    showGate('Alertes personnalisées avancées','Les alertes météo importantes restent gratuites. L’accès Premium permet de personnaliser les seuils et l’anticipation.');
+  });
+  ensureModal();
+  decorateFavorites();
+  lockStatsClicks();
+  updateControls();
+  const observer=new MutationObserver(records=>{
+    if(records.some(record=>Array.from(record.addedNodes).some(node=>node.nodeType===1&&
+      (node.matches('input,button,[data-mobile-tab="stats"]')||node.querySelector('input,[data-tab="stats"],[data-mobile-tab="stats"]'))))){
+      updateControls();
+    }
+  });
+  observer.observe(document.body,{childList:true,subtree:true});
+  disconnect.hidden=!token;
+  verify();
 })();

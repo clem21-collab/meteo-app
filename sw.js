@@ -1,5 +1,5 @@
-const CACHE='meteo-v5-0-wind-color-2';
-const LOCAL_ASSETS=['./','./index.html','./privacy.html','./style.css','./app.js','./push-client.js','./v34.js','./v34.css','./v35.js','./v35.css','./v36.js','./v36.css','./v37.js','./v37.css','./v38.js','./v38.css','./v40.js','./v41.js','./v41.css','./v42.js','./v42.css','./v43.js','./v43.css','./v44.js','./v44.css','./v45.js','./v45.css','./v46.js','./v46.css','./v50.js','./v50.css','./v50-patch.js','./v50-runtime.js','./v50-extra.js','./v50-premium-gates.js','./v50-radar-layers.js?v=5.0.2','./manifest.webmanifest','./icon.svg'];
+const CACHE='meteo-v5-0-wind-color-2-creator-1';
+const LOCAL_ASSETS=['./','./index.html','./privacy.html','./style.css?v=3.1','./app.js?v=3.3','./push-client.js?v=2','./v34.js?v=3.4','./v34.css','./v35.js?v=3.5','./v35.css','./v36.js?v=3.6','./v36.css','./v37.js?v=3.7','./v37.css','./v38.js?v=3.9','./v38.css','./v40.js?v=4.0','./v41.js?v=4.1','./v41.css','./v42.js?v=4.2','./v42.css','./v43.js?v=4.3','./v43.css','./v44.js?v=4.4','./v44.css','./v45.js?v=4.5','./v45.css','./v46.js?v=4.6.1','./v46.css','./v50.js?v=5.0.3','./v50.css','./v50-patch.js?v=5.0','./v50-runtime.js?v=5.0.3','./v50-extra.js?v=5.0','./v50-premium-gates.js?v=5.0.3','./v50-radar-layers.js?v=5.0.2','./manifest.webmanifest','./icon.svg'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(LOCAL_ASSETS)));
@@ -7,15 +7,15 @@ self.addEventListener('install',event=>{
 });
 
 self.addEventListener('activate',event=>{
-  event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))));
-  self.clients.claim();
+  event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('meteo-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));
 });
 
 self.addEventListener('fetch',event=>{
-  if(event.request.method!=='GET')return;
+  if(event.request.method!=='GET'||event.request.headers.has('Authorization'))return;
   const url=new URL(event.request.url);
   if(url.origin!==self.location.origin)return;
   event.respondWith(fetch(event.request,{cache:'no-store'}).then(response=>{
+    if(!response.ok)return response;
     const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy));return response;
   }).catch(()=>caches.match(event.request)));
 });

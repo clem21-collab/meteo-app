@@ -39,9 +39,12 @@ function injectV50AlertPreview(){
 }
 
 async function refreshV50PredictiveAlerts(){
-  const box=document.getElementById('v50PredictiveList');if(!box||!currentPlace)return;box.innerHTML='<div class="empty-state">Analyse des prochaines heures…</div>';
+  const box=document.getElementById('v50PredictiveList');if(!box)return;
+  if(!window.meteoPremium?.isActive()){box.textContent='Les prévisions intelligentes sont incluses dans Premium.';return;}
+  if(!currentPlace)return;box.innerHTML='<div class="empty-state">Analyse des prochaines heures…</div>';
   try{
     const data=typeof fetchV42HourlyDetails==='function'?await fetchV42HourlyDetails(false):null,h=data?.hourly;if(!h?.time?.length)throw new Error();
+    if(!window.meteoPremium?.isActive())return;
     const s=readV50Settings(),now=Date.now();let start=h.time.findIndex(t=>new Date(t).getTime()>=now-3600000);if(start<0)start=0;const lead=Math.max(1,Math.min(12,Number(s.smartLeadHours||6))),end=Math.min(h.time.length,start+Math.max(12,lead)+1),items=[];
     const first=(limit,pred)=>{for(let i=start;i<Math.min(end,start+limit+1);i++)if(pred(i))return i;return-1;},time=i=>new Intl.DateTimeFormat('fr-FR',{hour:'2-digit',minute:'2-digit'}).format(new Date(h.time[i]));
     if(s.frost!==false){const i=first(12,j=>Number(h.temperature_2m?.[j])<=Number(s.frostThreshold??0));if(i>=0)items.push(['❄️','Gel possible',`${Math.round(Number(h.temperature_2m[i]))} °C vers ${time(i)}`,'high']);}
