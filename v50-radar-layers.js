@@ -4,8 +4,8 @@
   let mode='rain';
   let refreshTimer=null;
   let request=null;
-  let windField=null;
-  let windPopup=null;
+  let weatherField=null;
+  let weatherPopup=null;
   window.meteoRadarShowsRain=()=>mode==='rain';
   const CACHE=new Map();
   const METEOFRANCE_URL='https://api.open-meteo.com/v1/meteofrance';
@@ -21,16 +21,15 @@
     .v50-layer-legend{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0 0;font-size:.82rem;color:var(--muted)}
     .v50-weather-marker{display:flex;align-items:center;justify-content:center;min-width:54px;padding:5px 7px;border-radius:13px;background:rgba(15,23,42,.78);color:#fff;border:1px solid rgba(255,255,255,.25);box-shadow:0 4px 16px rgba(0,0,0,.18);font-weight:800;font-size:.78rem;white-space:nowrap;backdrop-filter:blur(6px)}
     #panel-radar[data-weather-layer]:not([data-weather-layer="rain"]) :is(.radar-controls,#radarPlayBtn,.radar-source-switch,#mfForecastControls,#v36TimelineControls,#v50RadarModes,#v38FullscreenTimeline,#v38FullscreenPlay,.v38-overlay-info,.radar-legend,#radarStatus,#panel-radar > .attribution){display:none}
-    .v50-wind-popup{position:absolute;margin-bottom:12px}
-    .v50-wind-popup .leaflet-popup-content-wrapper{background:#fff;color:#172039;border-radius:12px;box-shadow:0 3px 14px #0005}
-    .v50-wind-popup .leaflet-popup-content{margin:0;padding:12px 42px 12px 14px;box-sizing:border-box;font-size:14px;line-height:1.4}
-    .v50-wind-popup .leaflet-popup-tip-container{display:none}
-    .v50-wind-popup a.leaflet-popup-close-button{position:absolute;top:0;right:0;display:grid;place-items:center;width:44px;height:44px;color:#172039;text-decoration:none;font-size:24px}
-    .v50-weather-marker.snow{background:rgba(59,130,246,.80)}
+    .v50-weather-popup{position:absolute;margin-bottom:12px}
+    .v50-weather-popup .leaflet-popup-content-wrapper{background:#fff;color:#172039;border-radius:12px;box-shadow:0 3px 14px #0005}
+    .v50-weather-popup .leaflet-popup-content{margin:0;padding:12px 42px 12px 14px;box-sizing:border-box;font-size:14px;line-height:1.4}
+    .v50-weather-popup .leaflet-popup-tip-container{display:none}
+    .v50-weather-popup a.leaflet-popup-close-button{position:absolute;top:0;right:0;display:grid;place-items:center;width:44px;height:44px;color:#172039;text-decoration:none;font-size:24px}
     .v50-weather-marker.temp-hot{background:rgba(194,65,12,.82)}
     .v50-weather-marker.temp-mild{background:rgba(5,150,105,.82)}
     .v50-weather-marker.temp-cold{background:rgba(37,99,235,.82)}
-.v50-wind-scale{display:flex;gap:8px;flex-wrap:wrap}.v50-wind-scale i{display:inline-block;width:18px;height:12px;margin-right:4px;border-radius:3px}
+.v50-weather-scale{display:flex;gap:8px;flex-wrap:wrap}.v50-weather-scale i{display:inline-block;width:18px;height:12px;margin-right:4px;border-radius:3px}
 
   `;
   document.head.appendChild(css);
@@ -83,10 +82,10 @@
   function clearOverlay(keepPopup=false){
     request?.abort();
     request=null;
-    windField=null;
+    weatherField=null;
     if(!keepPopup){
-      windPopup?.remove();
-      windPopup=null;
+      weatherPopup?.remove();
+      weatherPopup=null;
     }
     overlay?.remove();
     overlay=null;
@@ -96,7 +95,7 @@
     const m=getMap();
     const b=m.getBounds();
     const nw=m.project(b.getNorthWest()),se=m.project(b.getSouthEast());
-    const size=mode==='wind'?(m.getZoom()>=9?6:5):3;
+    const size=mode!=='temp'?(m.getZoom()>=9?6:5):3;
     const points=[];
     for(let row=0;row<size;row++){
       for(let col=0;col<size;col++){
@@ -107,35 +106,47 @@
     return {points,size,bounds:b,nw,se,zoom:m.getZoom()};
   }
 
-  function cacheKey(p,layerMode){return `${layerMode}:${p.lat.toFixed(3)},${p.lon.toFixed(3)}`;}
+  function cacheKey(p,layerMode,snowEnd){return `${layerMode}:${layerMode==='snow'?snowEnd+':':''}${p.lat.toFixed(3)},${p.lon.toFixed(3)}`;}
   function usableCurrent(d,layerMode=mode){
     if(!d||typeof d!=='object')return false;
-    return layerMode==='wind'?validWind(d)&&validNumber(d.wind_gusts_10m)&&d.wind_gusts_10m>=0:validNumber(d[layerMode==='snow'?'snowfall':'temperature_2m']);
+    return layerMode==='wind'?validWind(d)&&validNumber(d.wind_gusts_10m)&&d.wind_gusts_10m>=0:layerMode==='snow'?validSnow(d):validNumber(d.temperature_2m);
   }
 
-  async function requestBatch(points,url,model,layerMode,signal){
+  async function requestBatch(points,url,model,layerMode,signal,snowEnd){
     if(!points.length)return[];
     const u=new URL(url);
     u.searchParams.set('latitude',points.map(p=>p.lat.toFixed(5)).join(','));
     u.searchParams.set('longitude',points.map(p=>p.lon.toFixed(5)).join(','));
     u.searchParams.set('timezone','auto');
     u.searchParams.set('wind_speed_unit','kmh');
-    u.searchParams.set('current',layerMode==='wind'?'wind_speed_10m,wind_gusts_10m':layerMode==='snow'?'snowfall':'temperature_2m');
+    if(layerMode==='snow'){
+      u.searchParams.set('timezone','GMT');
+      u.searchParams.set('timeformat','unixtime');
+      u.searchParams.set('hourly','snowfall');
+      u.searchParams.set('forecast_hours','3');
+    }else{
+      u.searchParams.set('current',layerMode==='wind'?'wind_speed_10m,wind_gusts_10m':'temperature_2m');
+    }
     if(model)u.searchParams.set('models',model);
     const timeout=AbortSignal.timeout(5000);
     const r=await fetch(u,{cache:'no-store',signal:AbortSignal.any([signal,timeout])});if(!r.ok)throw new Error(`Météo HTTP ${r.status}`);
     const json=await r.json(),arr=Array.isArray(json)?json:[json];
-    return points.map((p,i)=>arr[i]?.current||{});
+    return points.map((p,i)=>{
+      if(layerMode!=='snow')return arr[i]?.current||{};
+      const hourly=arr[i]?.hourly;
+      const index=hourly?.time?.indexOf(snowEnd);
+      return {snowfall:hourly?.snowfall?.[index]};
+    });
   }
 
-  async function fetchPoints(points,signal){
+  async function fetchPoints(points,signal,snowEnd){
     const requestedMode=mode;
     const out=new Array(points.length),missing=[];
-    points.forEach((p,i)=>{const hit=CACHE.get(cacheKey(p,requestedMode));if(hit&&Date.now()-hit.time<10*60*1000)out[i]=hit.data;else missing.push({p,i});});
+    points.forEach((p,i)=>{const hit=CACHE.get(cacheKey(p,requestedMode,snowEnd));if(hit&&Date.now()-hit.time<10*60*1000)out[i]=hit.data;else missing.push({p,i});});
     if(!missing.length)return out;
 
     let primary=[];
-    try{primary=await requestBatch(missing.map(x=>x.p),METEOFRANCE_URL,AROME_HD,requestedMode,signal);}catch{}
+    try{primary=await requestBatch(missing.map(x=>x.p),METEOFRANCE_URL,AROME_HD,requestedMode,signal,snowEnd);}catch{}
     if(signal.aborted)return out;
     const second=[];
     missing.forEach((entry,j)=>{
@@ -145,7 +156,7 @@
     });
 
     let seamless=[];
-    if(second.length){try{seamless=await requestBatch(second.map(x=>x.p),METEOFRANCE_URL,METEOFRANCE_SEAMLESS,requestedMode,signal);}catch{}
+    if(second.length){try{seamless=await requestBatch(second.map(x=>x.p),METEOFRANCE_URL,METEOFRANCE_SEAMLESS,requestedMode,signal,snowEnd);}catch{}
     if(signal.aborted)return out;}
     const third=[];
     second.forEach((entry,j)=>{
@@ -155,85 +166,113 @@
     });
 
     let generic=[];
-    if(third.length){try{generic=await requestBatch(third.map(x=>x.p),GENERIC_URL,null,requestedMode,signal);}catch{}
+    if(third.length){try{generic=await requestBatch(third.map(x=>x.p),GENERIC_URL,null,requestedMode,signal,snowEnd);}catch{}
     if(signal.aborted)return out;}
     third.forEach((entry,j)=>{const d=generic[j]||{};out[entry.i]={...d,_source:'Open-Meteo secours'};});
 
     if(CACHE.size>500)CACHE.clear();
-    missing.forEach(entry=>{const d=out[entry.i]||{};if(!usableCurrent(d,requestedMode))return;CACHE.set(cacheKey(entry.p,requestedMode),{time:Date.now(),data:d});});
+    missing.forEach(entry=>{const d=out[entry.i]||{};if(!usableCurrent(d,requestedMode))return;CACHE.set(cacheKey(entry.p,requestedMode,snowEnd),{time:Date.now(),data:d});});
     return out;
   }
 
   const WIND_STOPS=[[0,'#2563eb','0–19'],[20,'#22c55e','20–39'],[40,'#facc15','40–59'],[60,'#f97316','60–79'],[80,'#ef4444','80–99'],[100,'#a855f7','100+']];
   function validNumber(v){return typeof v==='number'&&Number.isFinite(v);}
   function validWind(d){return validNumber(d?.wind_speed_10m)&&d.wind_speed_10m>=0;}
-  function windBand(speed){return WIND_STOPS[Math.min(5,Math.floor(speed/20))];}
+  const SNOW_STOPS=[[0.1,'#8ad9ff','0,1 à < 0,5'],[0.5,'#38a5ef','0,5 à < 1'],[1,'#3859df','1 à < 2'],[2,'#8c3ed3','2 et +']];
+  function validSnow(d){return validNumber(d?.snowfall)&&d.snowfall>=0;}
+  function fieldMetric(d,layerMode){
+    if(layerMode==='snow')return validSnow(d)?d.snowfall:null;
+    return validWind(d)?d.wind_speed_10m:null;
+  }
+  function snowPeriod(end){
+    const hour=value=>new Date(value*1000).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    return `${hour(end-3600)}–${hour(end)}`;
+  }
 
-  function fieldSpeed(field,x,y){
+  function fieldValue(field,x,y){
     const {size,data}=field;
     const col=Math.max(0,Math.min(size-1,x*size-.5));
     const row=Math.max(0,Math.min(size-1,y*size-.5));
     const left=Math.floor(col),top=Math.floor(row);
     const nearest=data[Math.round(row)*size+Math.round(col)];
-    if(!validWind(nearest))return null;
+    const value=fieldMetric(nearest,field.layerMode);
+    if(value===null)return null;
     const corners=[
       data[top*size+left],data[top*size+Math.ceil(col)],
       data[Math.ceil(row)*size+left],data[Math.ceil(row)*size+Math.ceil(col)]
     ];
-    if(!corners.every(d=>validWind(d)&&d._source===nearest._source))return nearest.wind_speed_10m;
-    const [nw,ne,sw,se]=corners.map(d=>d.wind_speed_10m);
+    const values=corners.map(d=>fieldMetric(d,field.layerMode));
+    if(values.includes(null)||!corners.every(d=>d._source===nearest._source))return value;
+    const [nw,ne,sw,se]=values;
     const dx=col-left,dy=row-top;
     return (nw+(ne-nw)*dx)*(1-dy)+(sw+(se-sw)*dx)*dy;
   }
 
-  function drawWind(field){
+  function drawWeatherField(field){
     const canvas=document.createElement('canvas');
     const size=128;
     canvas.width=canvas.height=size;
     const ctx=canvas.getContext('2d');
     const image=ctx.createImageData(size,size);
-    const palette=WIND_STOPS.map(([,hex])=>[...hex.slice(1).match(/../g).map(byte=>parseInt(byte,16)),255]);
+    const stops=field.layerMode==='snow'?SNOW_STOPS:WIND_STOPS;
+    const palette=stops.map(([,hex])=>[...hex.slice(1).match(/../g).map(byte=>parseInt(byte,16)),255]);
     for(let y=0;y<size;y++){
       for(let x=0;x<size;x++){
-        const speed=fieldSpeed(field,(x+.5)/size,(y+.5)/size);
+        const speed=fieldValue(field,(x+.5)/size,(y+.5)/size);
         if(speed===null)continue;
-        image.data.set(palette[WIND_STOPS.indexOf(windBand(speed))],(y*size+x)*4);
+        const band=stops.findLastIndex(([min])=>speed>=min);
+        if(band>=0)image.data.set(palette[band],(y*size+x)*4);
       }
     }
     ctx.putImageData(image,0,0);
     L.imageOverlay(canvas.toDataURL(),field.bounds,{opacity:.48,interactive:false,alt:''}).addTo(overlay);
   }
 
-  function showWindDetails({latlng}){
-    if(mode!=='wind'||!windField)return;
-    const {nw,se,zoom,size,data}=windField;
+  function showWeatherDetails({latlng}){
+    if(!weatherField)return;
+    const {nw,se,zoom,size,data}=weatherField;
     const p=getMap().project(latlng,zoom);
     const x=(p.x-nw.x)/(se.x-nw.x),y=(p.y-nw.y)/(se.y-nw.y);
     if(x<0||x>=1||y<0||y>=1)return;
     const sample=data[Math.floor(y*size)*size+Math.floor(x*size)];
-    const speed=fieldSpeed(windField,x,y);
+    const speed=fieldValue(weatherField,x,y);
     const detail=document.createElement('div');
     detail.style.whiteSpace='pre-line';
-    detail.textContent=speed===null?'Vent indisponible à cet endroit.':[
+    if(mode==='snow'){
+      detail.textContent=speed===null?'Prévision neige indisponible à cet endroit.':[
+        speed<0.1?'Moins de 0,1 cm de neige prévu':`Neige prévue · ${speed.toLocaleString('fr-FR',{maximumFractionDigits:1})} cm`,
+        `Cumul de ${snowPeriod(weatherField.snowEnd)}`,
+        sample._source+' via Open-Meteo'
+      ].join('\n');
+    }else detail.textContent=speed===null?'Vent indisponible à cet endroit.':[
       `Vent moyen estimé à 10 m · ${Math.round(speed)} km/h`,
       `Rafales au point échantillonné · ${validNumber(sample.wind_gusts_10m)?Math.round(sample.wind_gusts_10m)+' km/h':'indisponibles'}`,
       sample._source+' via Open-Meteo',
       sample.time?`Prévision locale · ${sample.time.replace('T',' à ')}`:'Heure indisponible'
     ].join('\n');
-    windPopup=L.popup({className:'v50-wind-popup',minWidth:210,maxWidth:240}).setLatLng(latlng).setContent(detail).openOn(getMap());
+    weatherPopup=L.popup({className:'v50-weather-popup',minWidth:210,maxWidth:240}).setLatLng(latlng).setContent(detail).openOn(getMap());
   }
-  function windLegend(data){
+  function fieldLegend(field){
     const el=document.getElementById('v50LayerLegend');if(!el)return;
-    const valid=data.filter(validWind),sources=[...new Set(valid.map(d=>d._source))].join(' / ');
-    el.textContent=valid.length?'Vent moyen à 10 m • '+sources+' via Open-Meteo • carte interpolée ('+valid.length+'/'+data.length+' points), toucher pour les détails. ':'Vent indisponible sur cette zone. Réessaie dans quelques instants. ';
-    const scale=document.createElement('div');scale.className='v50-wind-scale';scale.setAttribute('aria-label','Vent moyen en km/h');
-    scale.innerHTML=WIND_STOPS.map(([,color,label])=>'<span><i style="background:'+color+'"></i>'+label+' km/h</span>').join('');el.appendChild(scale);
+    const {data,layerMode,snowEnd}=field;
+    const snow=layerMode==='snow';
+    const valid=data.filter(d=>fieldMetric(d,layerMode)!==null);
+    const sources=[...new Set(valid.map(d=>d._source))].join(' / ');
+    if(snow){
+      const coverage=valid.length===data.length?'':' · couverture partielle';
+      const dry=valid.some(d=>d.snowfall>=0.1)?'':' · moins de 0,1 cm aux points disponibles';
+      el.textContent=valid.length?`Neige prévue de ${snowPeriod(snowEnd)} · ${sources} via Open-Meteo${coverage}${dry} · toucher pour les détails.`:'Prévision neige indisponible sur cette zone.';
+    }else{
+      el.textContent=valid.length?'Vent moyen à 10 m • '+sources+' via Open-Meteo • carte interpolée ('+valid.length+'/'+data.length+' points), toucher pour les détails. ':'Vent indisponible sur cette zone. Réessaie dans quelques instants. ';
+    }
+    const scale=document.createElement('div');scale.className='v50-weather-scale';
+    const unit=snow?'cm':'km/h';
+    scale.setAttribute('aria-label',snow?'Cumul de neige prévu en cm':'Vent moyen en km/h');
+    scale.innerHTML=(snow?SNOW_STOPS:WIND_STOPS).map(([,color,label])=>'<span><i style="background:'+color+'"></i>'+label+' '+unit+'</span>').join('');
+    el.appendChild(scale);
   }
 
   function markerHtml(d){
-    if(mode==='snow'){
-      const snow=Number(d.snowfall)||0;return `<div class="v50-weather-marker snow">❄️ ${snow.toFixed(snow<1?1:0)} cm</div>`;
-    }
     const t=Number(d.temperature_2m),cls=t<=5?'temp-cold':t>=25?'temp-hot':'temp-mild';return `<div class="v50-weather-marker ${cls}">🌡️ ${Number.isFinite(t)?Math.round(t):'--'}°</div>`;
   }
 
@@ -245,32 +284,30 @@
     const field=samplePoints();
     if(field.se.x<=field.nw.x||field.se.y<=field.nw.y)return;
     setLegend(mode==='wind'?'Chargement du vent Météo-France AROME HD…':mode==='snow'?'Chargement de la neige Météo-France…':'Chargement de la température Météo-France…');
-    const data=await fetchPoints(field.points,pending.signal).catch(()=>field.points.map(()=>({})));
+    const snowEnd=mode==='snow'?(Math.floor(Date.now()/3600000)+1)*3600:null;
+    const data=await fetchPoints(field.points,pending.signal,snowEnd).catch(()=>field.points.map(()=>({})));
     if(request!==pending)return;
     request=null;
     overlay=L.layerGroup().addTo(m);
-    if(mode==='wind'){
-      windField={...field,data};
-      if(data.some(validWind))drawWind(windField);
-      windLegend(data);
+    if(mode==='wind'||mode==='snow'){
+      weatherField={...field,data,layerMode:mode,snowEnd};
+      if(data.some(mode==='snow'?d=>validSnow(d)&&d.snowfall>=0.1:validWind))drawWeatherField(weatherField);
+      fieldLegend(weatherField);
       return;
     }
     data.forEach((d,index)=>{
-      if(mode==='snow'&&(Number(d?.snowfall)||0)<=0)return;
       if(!usableCurrent(d))return;
       const p=field.points[index];
       const icon=L.divIcon({className:'',html:markerHtml(d),iconSize:null,iconAnchor:[20,20]});
       L.marker([p.lat,p.lon],{icon,interactive:false}).addTo(overlay);
     });
     if(!data.some(d=>usableCurrent(d)))setLegend('Données météo indisponibles sur cette zone.');
-    else if(mode==='snow'&&overlay.getLayers().length===0)setLegend('❄️ Aucune chute de neige détectée actuellement sur la zone visible.');
-    else if(mode==='snow')setLegend('❄️ Neige actuelle • données Météo-France AROME.');
     else setLegend('🌡️ Température actuelle • données Météo-France AROME.');
   }
 
   function bindMap(){
     const m=getMap();if(!m||m.__v50LayersBound)return false;m.__v50LayersBound=true;
-    m.on('click',showWindDetails);
+    m.on('click',showWeatherDetails);
     m.on('movestart',()=>{if(mode!=='rain'){clearTimeout(refreshTimer);request?.abort();request=null;}});
     m.on('moveend',()=>{if(mode==='rain'||getPanel().hidden)return;clearTimeout(refreshTimer);refreshTimer=setTimeout(renderOverlay,350);});
     return true;

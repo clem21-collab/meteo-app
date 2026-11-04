@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 
 const source = fs.readFileSync('v50-radar-layers.js', 'utf8').replace(
   '  let tries=0;',
-  '  globalThis.test={setMode,renderOverlay,fieldSpeed,showWindDetails};let tries=0;'
+  '  globalThis.test={setMode,renderOverlay,fieldValue,showWeatherDetails};let tries=0;'
 );
 const legend = {textContent: '', appendChild(child) { this.scale = child; }};
 const panel = {dataset: {}};
@@ -77,10 +77,10 @@ const sample = (speed, gust = 72) => ({wind_speed_10m: speed, wind_gusts_10m: gu
   assert.match(legend.textContent, /AROME France HD/);
   assert.match(legend.textContent, /Open-Meteo secours/);
   assert.match(legend.scale.innerHTML, /100\+ km\/h/);
-  context.test.showWindDetails({latlng: [3, 47]});
+  context.test.showWeatherDetails({latlng: [3, 47]});
   assert.match(popup, /45 km\/h.*\n.*72 km\/h.*\n.*AROME France HD.*\n.*19:00/);
-  assert.equal(context.test.fieldSpeed({size: 2, data: [sample(0), sample(40), sample(0), sample(40)]}, .5, .5), 20);
-  assert.equal(context.test.fieldSpeed({size: 2, data: [sample(null), sample(40), sample(0), sample(40)]}, .1, .1), null);
+  assert.equal(context.test.fieldValue({size: 2, data: [sample(0), sample(40), sample(0), sample(40)]}, .5, .5), 20);
+  assert.equal(context.test.fieldValue({size: 2, data: [sample(null), sample(40), sample(0), sample(40)]}, .1, .1), null);
   await context.test.renderOverlay();
   assert.equal(calls.length, 3, 'the same viewport reuses cached samples');
 
@@ -99,6 +99,33 @@ const sample = (speed, gust = 72) => ({wind_speed_10m: speed, wind_gusts_10m: gu
   assert.equal(rainStarts, 1);
   assert.equal(legend.textContent, 'Radar de précipitations en direct.');
 
+  const snowEnd = (Math.floor(Date.now()/3600000)+1)*3600;
+  offset = 0;
+  const snowCalls = [];
+  fetchImpl = async url => {
+    snowCalls.push(url);
+    const count = url.searchParams.get('latitude').split(',').length;
+    return {ok:true,json:async()=>Array.from({length:count},(_,i)=>({
+      hourly:{time:[snowEnd-3600,snowEnd,snowEnd+3600],snowfall:[8,i===0&&count===25?null:i===1?0:1.2,9]}
+    }))};
+  };
+  context.test.setMode('snow');
+  await tick();
+  assert.deepEqual(snowCalls.map(url=>url.searchParams.get('latitude').split(',').length),[25,1]);
+  assert.equal(snowCalls[0].searchParams.get('hourly'),'snowfall');
+  assert.equal(snowCalls[0].searchParams.get('timeformat'),'unixtime');
+  assert.equal(snowCalls[0].searchParams.get('current'),null);
+  assert.equal(layers.length,1);
+  assert.deepEqual([...pixels.slice(0,4)],[56,89,223,255]);
+  assert.equal(pixels[38*4+3],0,'a dry cell stays transparent');
+  context.test.showWeatherDetails({latlng:[3,47]});
+  assert.match(popup,/1,2 cm/);
+  assert.match(popup,/Cumul de/);
+  assert.match(popup,/AROME France HD/);
+  assert.match(legend.scale.innerHTML,/2 et \+ cm/);
+  context.test.setMode('rain');
+  assert.equal(layers.length,0);
+
   const sw = fs.readFileSync('sw.js', 'utf8');
   assert.match(sw, /wind-field-2/);
   for (const file of ['index.html', 'push-client.js']) {
@@ -107,5 +134,5 @@ const sample = (speed, gust = 72) => ({wind_speed_10m: speed, wind_gusts_10m: gu
       assert.ok(sw.includes("'./" + url[1] + "'"), url[1] + ' must be precached');
     }
   }
-  console.log('PASS: wind raster, tap details, interpolation, fallback, request abort, cache and return to rain');
+  console.log('PASS: wind and snow rasters, hourly snow, tap details, interpolation, fallback, request abort, cache and return to rain');
 })().catch(error => { console.error(error); process.exitCode = 1; });
