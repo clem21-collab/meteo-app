@@ -160,7 +160,7 @@ function patchV37UnifiedRadar(){
   const originalShowUnifiedFrame=window.showUnifiedFrame;
   window.showUnifiedFrame=async function(index){
     const result=await originalShowUnifiedFrame(index);
-    updateV37ActiveStep(Number(index),true);
+    if(result)updateV37ActiveStep(Number(index),true);
     return result;
   };
 
@@ -176,7 +176,7 @@ function patchV37UnifiedRadar(){
 (function loadV38Fullscreen(){
   if(document.querySelector('script[data-v38]'))return;
   const s=document.createElement('script');
-  s.src='v38.js?v=3.8';
+  s.src='v38.js?v=3.9.1';
   s.dataset.v38='1';
   document.body.appendChild(s);
 })();

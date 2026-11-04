@@ -226,7 +226,7 @@ function enhanceV50Radar(){
   try{showRadarFrame=v50ShowRadarFrame;}catch{}
   toolbar.querySelectorAll('[data-radar-mode]').forEach(b=>b.addEventListener('click',async()=>{
     const mode=b.dataset.radarMode,s=saveV50Settings({radarSnow:mode!=='rain'});syncV50RadarButtons();
-    if(mode==='storm')await showV50StormOnMap();else{removeV50StormLayer();try{const i=Number(document.getElementById('radarSlider')?.value||0),host=document.getElementById('radarSlider')?.dataset.host||v36Host;v50ShowRadarFrame(i,host);applyUnifiedOpacity?.();}catch{}}
+    if(mode==='storm')await showV50StormOnMap();else{removeV50StormLayer();try{if(typeof v36Mode!=='undefined'&&v36Mode&&v36Frames.length){stopUnifiedAnimation();await showUnifiedFrame(Number(document.getElementById('v36TimelineSlider')?.value||0));return;}const i=Number(document.getElementById('radarSlider')?.value||0),host=document.getElementById('radarSlider')?.dataset.host||v36Host;v50ShowRadarFrame(i,host);applyUnifiedOpacity?.();}catch{}}
   }));
   document.getElementById('v50RadarCenter')?.addEventListener('click',()=>{try{if(map&&currentPlace){map.setView([currentPlace.latitude,currentPlace.longitude],9);marker?.setLatLng?.([currentPlace.latitude,currentPlace.longitude]);}}catch{}});
   syncV50RadarButtons();

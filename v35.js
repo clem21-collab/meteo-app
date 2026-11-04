@@ -91,7 +91,7 @@ function stopMfAnimation(){
 
 async function fetchMfMeta(force=false){
   if(mfForecastMeta&&!force)return mfForecastMeta;
-  const response=await fetch(`${V35_BACKEND}/mf-nowcast/meta${force?'?refresh=1':''}`,{cache:'no-store'});
+  const response=await fetch(`${V35_BACKEND}/mf-nowcast/meta${force?'?refresh=1':''}`,{cache:'no-store',signal:AbortSignal.timeout(7000)});
   let data={};
   try{data=await response.json();}catch{}
   if(!response.ok||!data.ok)throw new Error(data.error||`Météo-France indisponible (${response.status})`);
