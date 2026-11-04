@@ -146,6 +146,7 @@ function makeUnifiedFrames(observed,meta){
 }
 
 async function showUnifiedRadar(force=false){
+  if(window.meteoRadarShowsRain?.()===false)return;
   if(typeof currentPlace==='undefined'||!currentPlace)return;
   setUnifiedUi();
   const status=document.getElementById('radarStatus');
@@ -155,7 +156,7 @@ async function showUnifiedRadar(force=false){
       ensureObservedFrames(force),
       fetchMfMeta(force)
     ]);
-    if(!v36Mode)return;
+    if(!v36Mode||window.meteoRadarShowsRain?.()===false)return;
     makeUnifiedFrames(observed,meta);
     if(!v36Frames.length)throw new Error('Aucune image radar disponible.');
 
@@ -210,7 +211,7 @@ function applyUnifiedOpacity(){
 }
 
 async function showUnifiedFrame(index){
-  if(!v36Mode||!v36Frames.length||typeof map==='undefined'||!map)return;
+  if(window.meteoRadarShowsRain?.()===false||!v36Mode||!v36Frames.length||typeof map==='undefined'||!map)return;
   index=Math.max(0,Math.min(v36Frames.length-1,Number(index)||0));
   const frame=v36Frames[index];if(!frame)return;
   const slider=document.getElementById('v36TimelineSlider');if(slider)slider.value=String(index);

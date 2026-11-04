@@ -235,6 +235,7 @@ function syncV50RadarButtons(){
   const snow=readV50Settings().radarSnow;document.querySelectorAll('#v50RadarModes [data-radar-mode]').forEach(b=>b.classList.toggle('active',b.dataset.radarMode===(snow?'snow':'rain')));
 }
 function v50ShowRadarFrame(i,host){
+  if(window.meteoRadarShowsRain?.()===false)return;
   if(typeof map==='undefined'||!map||typeof radarFrames==='undefined'||!radarFrames?.length||!window.L)return v50OriginalShowRadarFrame?.(i,host);
   i=Math.max(0,Math.min(Number(i)||0,radarFrames.length-1));const f=radarFrames[i],snow=readV50Settings().radarSnow?1:0;
   try{if(radarLayer)map.removeLayer(radarLayer);}catch{}
@@ -248,7 +249,7 @@ async function refreshV50RadarRisk(){
 }
 async function showV50StormOnMap(){
   removeV50StormLayer();await refreshV50RadarRisk();const box=document.getElementById('v50RadarStorm');
-  if(!box?.textContent?.includes('Signal orageux')||!window.L||!map||!currentPlace)return;
+  if(window.meteoRadarShowsRain?.()===false||!box?.textContent?.includes('Signal orageux')||!window.L||!map||!currentPlace)return;
   v50StormLayer=L.circleMarker([currentPlace.latitude,currentPlace.longitude],{radius:28,weight:4,fillOpacity:.12}).addTo(map).bindPopup('⛈️ Orage prévu à proximité de la ville sélectionnée.');map.setView([currentPlace.latitude,currentPlace.longitude],9);
 }
 
