@@ -93,6 +93,7 @@ function injectV50Navigation(){
   }
 }
 function switchV50Tab(name){
+  if(name==='stats'&&!window.meteoPremium?.isActive())return;
   document.querySelectorAll('.tab-panel').forEach(p=>{const on=p.id===`panel-${name}`;p.hidden=!on;p.classList.toggle('active',on);});
   document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
   document.querySelectorAll('.mobile-bottom-nav [data-mobile-tab]').forEach(b=>b.classList.toggle('active',b.dataset.mobileTab===name));
@@ -270,6 +271,7 @@ async function fetchV50StatsAll(force=false){
   const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error(`Stats ${r.status}`);v50StatsAll=await r.json();v50StatsKey=key;return v50StatsAll;
 }
 async function refreshV50LongStats(days=30){
+  if(!window.meteoPremium?.isActive())return;
   const panel=document.getElementById('panel-stats');if(!panel)return;days=Math.max(7,Math.min(365,Number(days)||30));
   panel.querySelectorAll('.v46-range-toggle button').forEach(b=>b.classList.toggle('active',Number(b.dataset.days)===days));
   const head=panel.querySelector('.v46-stats-head h2');if(head)head.textContent=days===7?'7 derniers jours':days===30?'30 derniers jours':days===90?'3 derniers mois':days===180?'6 derniers mois':'1 an';
