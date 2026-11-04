@@ -1,5 +1,5 @@
-const CACHE='meteo-v5-0-wind-field-1-creator-1';
-const LOCAL_ASSETS=['./','./index.html','./privacy.html','./style.css?v=3.1','./app.js?v=3.3.1','./push-client.js?v=2.1','./v34.js?v=3.4','./v34.css','./v35.js?v=3.5.1','./v35.css','./v36.js?v=3.6.1','./v36.css','./v37.js?v=3.7','./v37.css','./v38.js?v=3.9','./v38.css','./v40.js?v=4.0','./v41.js?v=4.1','./v41.css','./v42.js?v=4.2','./v42.css','./v43.js?v=4.3','./v43.css','./v44.js?v=4.4','./v44.css','./v45.js?v=4.5','./v45.css','./v46.js?v=4.6.1','./v46.css','./v50.js?v=5.0.4','./v50.css','./v50-patch.js?v=5.0','./v50-runtime.js?v=5.0.3','./v50-extra.js?v=5.0','./v50-premium-gates.js?v=5.0.3','./v50-radar-layers.js?v=5.0.3','./manifest.webmanifest','./icon.svg'];
+const CACHE='meteo-v5-0-wind-field-2-creator-1';
+const LOCAL_ASSETS=['./','./index.html','./privacy.html','./style.css?v=3.1','./app.js?v=3.3.1','./push-client.js?v=2.1','./v34.js?v=3.4','./v34.css','./v35.js?v=3.5.1','./v35.css','./v36.js?v=3.6.1','./v36.css','./v37.js?v=3.7','./v37.css','./v38.js?v=3.9','./v38.css','./v40.js?v=4.0','./v41.js?v=4.1','./v41.css','./v42.js?v=4.2','./v42.css','./v43.js?v=4.3','./v43.css','./v44.js?v=4.4','./v44.css','./v45.js?v=4.5','./v45.css','./v46.js?v=4.6.1','./v46.css','./v50.js?v=5.0.4','./v50.css','./v50-patch.js?v=5.0','./v50-runtime.js?v=5.0.3','./v50-extra.js?v=5.0','./v50-premium-gates.js?v=5.0.3','./v50-radar-layers.js?v=5.0.4','./manifest.webmanifest','./icon.svg'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(LOCAL_ASSETS)));

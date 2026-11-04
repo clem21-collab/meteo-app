@@ -20,7 +20,12 @@
     .v50-layer-switcher button.active{background:var(--accent,#5d74e8);color:#fff;border-color:transparent}
     .v50-layer-legend{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0 0;font-size:.82rem;color:var(--muted)}
     .v50-weather-marker{display:flex;align-items:center;justify-content:center;min-width:54px;padding:5px 7px;border-radius:13px;background:rgba(15,23,42,.78);color:#fff;border:1px solid rgba(255,255,255,.25);box-shadow:0 4px 16px rgba(0,0,0,.18);font-weight:800;font-size:.78rem;white-space:nowrap;backdrop-filter:blur(6px)}
-    #panel-radar[data-weather-layer]:not([data-weather-layer="rain"]) :is(.radar-controls,#radarPlayBtn,.radar-source-switch,#mfForecastControls,#v36TimelineControls,#v50RadarModes,#v38FullscreenTimeline,#v38FullscreenPlay,.v38-overlay-info){display:none}
+    #panel-radar[data-weather-layer]:not([data-weather-layer="rain"]) :is(.radar-controls,#radarPlayBtn,.radar-source-switch,#mfForecastControls,#v36TimelineControls,#v50RadarModes,#v38FullscreenTimeline,#v38FullscreenPlay,.v38-overlay-info,.radar-legend,#radarStatus,#panel-radar > .attribution){display:none}
+    .v50-wind-popup{position:absolute;margin-bottom:12px}
+    .v50-wind-popup .leaflet-popup-content-wrapper{background:#fff;color:#172039;border-radius:12px;box-shadow:0 3px 14px #0005}
+    .v50-wind-popup .leaflet-popup-content{margin:0;padding:12px 42px 12px 14px;box-sizing:border-box;font-size:14px;line-height:1.4}
+    .v50-wind-popup .leaflet-popup-tip-container{display:none}
+    .v50-wind-popup a.leaflet-popup-close-button{position:absolute;top:0;right:0;display:grid;place-items:center;width:44px;height:44px;color:#172039;text-decoration:none;font-size:24px}
     .v50-weather-marker.snow{background:rgba(59,130,246,.80)}
     .v50-weather-marker.temp-hot{background:rgba(194,65,12,.82)}
     .v50-weather-marker.temp-mild{background:rgba(5,150,105,.82)}
@@ -215,7 +220,7 @@
       sample._source+' via Open-Meteo',
       sample.time?`Prévision locale · ${sample.time.replace('T',' à ')}`:'Heure indisponible'
     ].join('\n');
-    windPopup=L.popup({maxWidth:240}).setLatLng(latlng).setContent(detail).openOn(getMap());
+    windPopup=L.popup({className:'v50-wind-popup',minWidth:210,maxWidth:240}).setLatLng(latlng).setContent(detail).openOn(getMap());
   }
   function windLegend(data){
     const el=document.getElementById('v50LayerLegend');if(!el)return;

@@ -100,7 +100,7 @@ const sample = (speed, gust = 72) => ({wind_speed_10m: speed, wind_gusts_10m: gu
   assert.equal(legend.textContent, 'Radar de précipitations en direct.');
 
   const sw = fs.readFileSync('sw.js', 'utf8');
-  assert.match(sw, /wind-field-1/);
+  assert.match(sw, /wind-field-2/);
   for (const file of ['index.html', 'push-client.js']) {
     const entry = fs.readFileSync(file, 'utf8');
     for (const url of entry.matchAll(/['"]([\w-]+\.js\?v=[\d.]+)['"]/g)) {
