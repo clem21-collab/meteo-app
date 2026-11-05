@@ -81,7 +81,7 @@ function injectV50Navigation(){
     mobile.insertBefore(b,mobile.firstElementChild);b.addEventListener('click',()=>switchV50Tab('today'));
   }
   mobile?.classList.add('v50-scroll-nav');
-  ['weather','radar','favorites','alerts'].forEach(name=>{
+  ['weather','radar','favorites','alerts','weather-forecast','weather-air','weather-history'].forEach(name=>{
     const button=mobile?.querySelector('[data-mobile-tab="'+name+'"]');
     if(button)mobile.appendChild(button);
   });
