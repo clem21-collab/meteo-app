@@ -224,3 +224,35 @@ body.weather-journal #v50LayerSwitcher button { min-height: 44px; color: var(--t
   .weather-journal .mobile-bottom-nav button { min-height: 44px; }
   .weather-journal :is(.radar-header,.alerts-heading) { flex-wrap: wrap; gap: .5rem; }
 }
+
+/* Main journeys stay visible; secondary sections live in the sections menu. */
+.journal-sections { margin-block: 8px 16px; border-block: 1px solid var(--border); }
+.journal-sections summary { cursor: pointer; padding: 12px 4px; color: var(--text); font-weight: 650; }
+.weather-journal .journal-sections .tabs { display: flex !important; flex-wrap: wrap; margin-block: 4px 12px; }
+body.weather-journal .mobile-bottom-nav.v50-scroll-nav {
+  display: grid !important;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  overflow: visible;
+}
+body.weather-journal .mobile-bottom-nav [data-mobile-tab]:not([data-mobile-tab="weather"]):not([data-mobile-tab="radar"]):not([data-mobile-tab="favorites"]):not([data-mobile-tab="alerts"]) { display: none; }
+.weather-journal #panel-weather > * { min-width: 0; }
+.weather-journal #panel-weather .hero { gap: clamp(45px,10vw,100px); }
+.weather-journal #v45CustomizeBar { margin-top: 24px; border-top: 1px solid var(--border); padding-top: 16px; }
+.weather-journal .home-links { padding-top: 8px; }
+.weather-journal .topbar { align-items: center; }
+.weather-journal .journal-radar { margin-top: 8px; }
+@media(min-width: 900px) {
+  body.weather-journal .app-shell { width: min(1160px,100% - 48px); }
+  .weather-journal #panel-weather.active {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+    align-items: start;
+    gap: 18px 24px;
+  }
+  .weather-journal #panel-weather > * { grid-column: 1 / -1; margin-block: 0; }
+  .weather-journal #panel-weather > .hero,
+  .weather-journal #panel-weather > .journal-radar { grid-column: auto; }
+  body.weather-journal #panel-weather > .hero { min-height: 420px; }
+  .weather-journal #journalRadarMap { height: 310px; }
+  body.weather-journal .mobile-bottom-nav.v50-scroll-nav { display: none !important; }
+}
