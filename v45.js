@@ -62,9 +62,40 @@ function saveV45Order(order){
 }
 
 function applyV45Order(){
-  const panel=document.getElementById('panel-weather');if(!panel)return;
-  const order=readV45Order();
-  order.forEach(key=>{const el=V45_BLOCKS[key]?.get?.();if(el&&el.parentElement===panel)panel.appendChild(el);});
+  const panel=document.getElementById('panel-weather');
+  if(!panel)return;
+  const groups=[
+    {id:'forecast',title:'Prévisions détaillées',description:'48 heures, semaine et pluie à court terme',keys:['hourly','daily','chart','smart']},
+    {id:'air',title:'Air et pollen',description:'Qualité de l’air et pollens autour de vous',keys:['air']},
+    {id:'history',title:'Bilans et historique',description:'Résumé du jour et météo des jours passés',keys:['brief','history']}
+  ];
+  const destinations=new Map();
+  for(const group of groups){
+    let section=document.getElementById('weather-group-'+group.id);
+    if(!section){
+      section=document.createElement('details');
+      section.id='weather-group-'+group.id;
+      section.className='weather-category';
+      const summary=document.createElement('summary');
+      const title=document.createElement('strong');
+      title.textContent=group.title;
+      const description=document.createElement('small');
+      description.textContent=group.description;
+      summary.append(title,description);
+      section.appendChild(summary);
+      panel.appendChild(section);
+    }
+    for(const key of group.keys)destinations.set(key,section);
+  }
+  for(const key of readV45Order()){
+    const element=V45_BLOCKS[key]?.get?.();
+    if(element&&panel.contains(element))(destinations.get(key)||panel).appendChild(element);
+  }
+  for(const group of groups){
+    const section=document.getElementById('weather-group-'+group.id);
+    section.hidden=section.children.length===1;
+    panel.appendChild(section);
+  }
   const customize=document.getElementById('v45CustomizeBar');
   if(customize)panel.appendChild(customize);
   renderV45OrderList();
@@ -79,7 +110,7 @@ function injectV45Customize(panel){
 
   const modal=document.createElement('div');
   modal.id='v45OrderModal';modal.className='v45-order-modal';modal.hidden=true;
-  modal.innerHTML=`<div class="v45-order-backdrop" data-v45-close="1"></div><section class="v45-order-sheet glass-card" role="dialog" aria-modal="true" aria-labelledby="v45OrderTitle"><div class="v45-order-head"><div><span class="section-label">PERSONNALISER</span><h2 id="v45OrderTitle">Ordre de l’accueil</h2><p class="muted">Utilise ↑ et ↓ pour déplacer les blocs.</p></div><button id="v45OrderClose" class="v45-order-close" type="button">✕</button></div><div id="v45OrderList" class="v45-order-list"></div><div class="v45-order-actions"><button id="v45OrderReset" class="secondary-button" type="button">↺ Ordre par défaut</button><button id="v45OrderDone" type="button">Terminé</button></div></section>`;
+  modal.innerHTML=`<div class="v45-order-backdrop" data-v45-close="1"></div><section class="v45-order-sheet glass-card" role="dialog" aria-modal="true" aria-labelledby="v45OrderTitle"><div class="v45-order-head"><div><span class="section-label">PERSONNALISER</span><h2 id="v45OrderTitle">Ordre de l’accueil</h2><p class="muted">Utilise ↑ et ↓ pour déplacer les blocs dans leur rubrique.</p></div><button id="v45OrderClose" class="v45-order-close" type="button">✕</button></div><div id="v45OrderList" class="v45-order-list"></div><div class="v45-order-actions"><button id="v45OrderReset" class="secondary-button" type="button">↺ Ordre par défaut</button><button id="v45OrderDone" type="button">Terminé</button></div></section>`;
   document.body.appendChild(modal);
   document.getElementById('v45CustomizeBtn')?.addEventListener('click',openV45OrderModal);
   document.getElementById('v45OrderClose')?.addEventListener('click',closeV45OrderModal);
