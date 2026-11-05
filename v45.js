@@ -71,30 +71,57 @@ function applyV45Order(){
   ];
   const destinations=new Map();
   for(const group of groups){
-    let section=document.getElementById('weather-group-'+group.id);
+    const tabName='weather-'+group.id;
+    let section=document.getElementById('panel-'+tabName);
     if(!section){
-      section=document.createElement('details');
-      section.id='weather-group-'+group.id;
-      section.className='weather-category';
-      const summary=document.createElement('summary');
-      const title=document.createElement('strong');
+      section=document.createElement('section');
+      section.id='panel-'+tabName;
+      section.className='tab-panel weather-category-page';
+      section.hidden=true;
+      const header=document.createElement('header');
+      const title=document.createElement('h2');
+      title.className='journal-heading';
       title.textContent=group.title;
-      const description=document.createElement('small');
+      const description=document.createElement('p');
+      description.className='muted';
       description.textContent=group.description;
-      summary.append(title,description);
-      section.appendChild(summary);
-      panel.appendChild(section);
+      header.append(title,description);
+      section.appendChild(header);
+      panel.after(section);
+      const labels={forecast:['Prévisions','◷'],air:['Air & pollen','❀'],history:['Historique','↶']};
+      const [label,icon]=labels[group.id];
+      for(const mobile of [false,true]){
+        const nav=document.querySelector(mobile?'.mobile-bottom-nav':'.tabs');
+        if(!nav)continue;
+        const button=document.createElement('button');
+        button.type='button';
+        if(mobile){
+          button.dataset.mobileTab=tabName;
+          const symbol=document.createElement('span');
+          symbol.setAttribute('aria-hidden','true');
+          symbol.textContent=icon;
+          const text=document.createElement('small');
+          text.textContent=label;
+          button.append(symbol,text);
+        }else{
+          button.dataset.tab=tabName;
+          button.className='tab';
+          button.textContent=group.title;
+        }
+        button.addEventListener('click',()=>{
+          switchTab(tabName);
+          const menu=document.querySelector('.journal-sections');
+          if(menu)menu.open=false;
+          section.scrollIntoView({block:'start'});
+        });
+        nav.appendChild(button);
+      }
     }
     for(const key of group.keys)destinations.set(key,section);
   }
   for(const key of readV45Order()){
     const element=V45_BLOCKS[key]?.get?.();
-    if(element&&panel.contains(element))(destinations.get(key)||panel).appendChild(element);
-  }
-  for(const group of groups){
-    const section=document.getElementById('weather-group-'+group.id);
-    section.hidden=section.children.length===1;
-    panel.appendChild(section);
+    if(element)(destinations.get(key)||panel).appendChild(element);
   }
   const hero=V45_BLOCKS.current.get();
   const rain=document.getElementById('soonRainCard');
