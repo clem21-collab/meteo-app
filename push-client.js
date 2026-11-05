@@ -55,7 +55,7 @@ let cityRefreshTimer=null;const placeName=document.getElementById('placeName');i
 function loadEnhancement(src,dataKey,onload){return new Promise(resolve=>{const existing=document.querySelector(`script[${dataKey}]`);if(existing){resolve();return;}const s=document.createElement('script');s.src=src;s.setAttribute(dataKey,'1');s.onload=()=>{try{onload?.();}finally{resolve();}};s.onerror=()=>resolve();document.body.appendChild(s);});}
 
 (async()=>{
-  await loadEnhancement('v34.js?v=3.4','data-v34',()=>{const duplicate=document.getElementById('alertHours');if(duplicate&&document.getElementById('leadHours'))duplicate.closest('.setting-block')?.remove();});
+  await loadEnhancement('v34.js?v=3.4.1','data-v34',()=>{const duplicate=document.getElementById('alertHours');if(duplicate&&document.getElementById('leadHours'))duplicate.closest('.setting-block')?.remove();});
   await loadEnhancement('v35.js?v=3.5.2','data-v35');
   await loadEnhancement('v36.js?v=3.6.2','data-v36');
   await loadEnhancement('v37.js?v=3.7.1','data-v37');
@@ -65,9 +65,9 @@ function loadEnhancement(src,dataKey,onload){return new Promise(resolve=>{const 
   await loadEnhancement('v42.js?v=4.2','data-v42');
   await loadEnhancement('v43.js?v=4.3','data-v43');
   await loadEnhancement('v44.js?v=4.4','data-v44');
-  await loadEnhancement('v45.js?v=4.5.3','data-v45');
+  await loadEnhancement('v45.js?v=4.5.4','data-v45');
   await loadEnhancement('v46.js?v=4.6.1','data-v46');
-  await loadEnhancement('v50.js?v=5.0.6','data-v50');
+  await loadEnhancement('v50.js?v=5.0.7','data-v50');
   await loadEnhancement('v50-patch.js?v=5.0.1','data-v50-patch');
   await loadEnhancement('v50-runtime.js?v=5.0.3','data-v50-runtime');
   await loadEnhancement('v50-extra.js?v=5.0.1','data-v50-extra');
