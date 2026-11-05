@@ -12,7 +12,7 @@ const weatherMap={0:['☀️','Ciel dégagé'],1:['🌤️','Principalement dég
 let currentPlace=null,currentData=null,map=null,marker=null,radarLayer=null,radarFrames=[],radarLoadedFor=null,radarTimer=null,deferredInstallPrompt=null;
 
 function weatherInfo(code,isDay=1){const base=weatherMap[code]||['🌤️','Conditions variables'];if(!isDay&&[0,1].includes(code))return['🌙',base[1]];if(!isDay&&code===2)return['☁️',base[1]];return base;}
-function setStatus(message,isError=false){const el=$('status');if(!el)return;el.textContent=message||'';el.style.color=isError?'#d14a5a':'';}
+function setStatus(message,isError=false){const el=$('status');if(!el)return;el.textContent=message||'';el.dataset.error=String(isError);}
 function safeRound(v){return Number.isFinite(Number(v))?Math.round(Number(v)):'--';}
 function fmtHour(iso){const d=new Date(iso);return Number.isNaN(d.getTime())?'--:--':new Intl.DateTimeFormat('fr-FR',{hour:'2-digit',minute:'2-digit'}).format(d);}
 function fmtUnixHour(sec){return fmtHour(new Date(sec*1000).toISOString());}
@@ -50,9 +50,21 @@ async function requestNotificationPermission(){if(!('Notification'in window)){se
 
 let weatherLoadRevision=0;
 async function loadWeather(lat,lon,place=null){const revision=++weatherLoadRevision;try{forecast48.load(lat,lon).catch(console.error);setStatus('Chargement de la météo…');currentPlace=place?{name:place.name||'Ma position',admin1:place.admin1||'',country:place.country||'',latitude:Number(lat),longitude:Number(lon)}:{name:'Ma position',admin1:'',country:'Position actuelle',latitude:Number(lat),longitude:Number(lon)};$('placeName').textContent=currentPlace.name;$('placeDetail').textContent=placeSubtitle(currentPlace)||'Position actuelle';const data=await fetchWeather(lat,lon);if(revision!==weatherLoadRevision)return;currentData=data;renderCurrent(currentData);renderDaily(currentData);updateFavoriteButton();renderWeatherAlerts();updateNotificationState();maybeNotifyWeatherAlert();const sunrise=currentData.daily.sunrise?.[0]?fmtHour(currentData.daily.sunrise[0]):'--',sunset=currentData.daily.sunset?.[0]?fmtHour(currentData.daily.sunset[0]):'--';setStatus(`Lever ${sunrise} • Coucher ${sunset}`);radarLoadedFor=null;if(map){map.setView([Number(lat),Number(lon)],Math.min(map.getZoom(),7));if(marker)marker.setLatLng([Number(lat),Number(lon)]);}}catch(err){if(revision!==weatherLoadRevision)return;console.error(err);setStatus(`Erreur V${APP_VERSION} : ${err?.message||'une erreur est survenue'}`,true);}}
-async function selectInitialCity(){try{const r=await searchPlaces('Dijon'),p=r.find(x=>normalizeText(x.country_code)==='fr')||r[0];if(!p)throw new Error('Dijon introuvable.');await loadWeather(p.latitude,p.longitude,p);}catch(err){console.error(err);setStatus(`Erreur V${APP_VERSION} au démarrage.`,true);}}
+async function selectInitialCity(){try{const r=await searchPlaces('Dijon'),p=r.find(x=>normalizeText(x.country_code)==='fr')||r[0];if(!p)throw new Error('Dijon introuvable.');await loadWeather(p.latitude,p.longitude,p);}catch(err){console.error(err);const hourlyNote=$('hourly').querySelector('.f48-note');if(hourlyNote)hourlyNote.textContent='Recherche une ville pour afficher ses prévisions.';setStatus(`Erreur V${APP_VERSION} au démarrage. Recherche une ville pour réessayer.`,true);}}
 
-function switchTab(name){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));document.querySelectorAll('.tab-panel').forEach(p=>{const on=p.id===`panel-${name}`;p.hidden=!on;p.classList.toggle('active',on);});document.querySelectorAll('[data-mobile-tab]').forEach(b=>b.classList.toggle('active',b.dataset.mobileTab===name));if(name==='favorites')renderFavorites();if(name==='alerts'){syncAlertControls();renderWeatherAlerts();updateNotificationState();}if(name==='radar')setTimeout(()=>{if(map)map.invalidateSize();loadRadarForCurrentPlace();},80);}
+function switchTab(name){
+  document.querySelectorAll('.tabs [data-tab], [data-mobile-tab]').forEach(button=>{
+    const active=(button.dataset.tab ?? button.dataset.mobileTab)===name;
+    button.classList.toggle('active',active);
+    if(active)button.setAttribute('aria-current','page');
+    else button.removeAttribute('aria-current');
+  });
+  document.querySelectorAll('.tab-panel').forEach(panel=>{
+    const active=panel.id===`panel-${name}`;
+    panel.hidden=!active;
+    panel.classList.toggle('active',active);
+  });
+  if(name==='favorites')renderFavorites();if(name==='alerts'){syncAlertControls();renderWeatherAlerts();updateNotificationState();}if(name==='radar')setTimeout(()=>{if(map)map.invalidateSize();loadRadarForCurrentPlace();},80);}
 function initMap(){if(!window.L||map)return!!map;map=window.L.map('radarMap',{center:[47.322,5.0415],zoom:6,minZoom:3,maxZoom:7});window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);marker=window.L.circleMarker([47.322,5.0415],{radius:7,weight:3,color:'#fff',fillColor:'#4b62d1',fillOpacity:1}).addTo(map);return true;}
 async function fetchRadarFrames(){const r=await fetch(RAINVIEWER_URL,{cache:'no-store',signal:AbortSignal.timeout(7000)});if(!r.ok)throw new Error('Radar RainViewer indisponible.');const d=await r.json(),frames=d?.radar?.past||[];if(!frames.length)throw new Error('Aucune image radar disponible.');return{host:d.host||'https://tilecache.rainviewer.com',frames};}
 function showRadarFrame(i,host){if(window.meteoRadarShowsRain?.()===false||!map||!radarFrames.length||!window.L)return;i=Math.max(0,Math.min(Number(i),radarFrames.length-1));const f=radarFrames[i];if(radarLayer)map.removeLayer(radarLayer);radarLayer=window.L.tileLayer(`${host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,{tileSize:256,opacity:.68,maxNativeZoom:7,maxZoom:7}).addTo(map);$('radarSlider').value=i;$('radarTime').textContent=fmtUnixHour(f.time);}
@@ -74,6 +86,17 @@ $('notificationBtn').addEventListener('click',requestNotificationPermission);
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;$('installBtn').hidden=false;});
 $('installBtn').addEventListener('click',async()=>{if(!deferredInstallPrompt){setStatus('Dans Chrome : menu ⋮ puis Installer l’application.');return;}deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;$('installBtn').hidden=true;});
 window.addEventListener('appinstalled',()=>{$('installBtn').hidden=true;setStatus('Application installée.');});
+const themeMode=$('themeMode');
+try {
+  const savedTheme=localStorage.getItem('meteo.dashboard.theme');
+  if(savedTheme==='light'||savedTheme==='dark')themeMode.value=savedTheme;
+} catch {}
+document.body.dataset.theme=themeMode.value;
+themeMode.addEventListener('change',()=>{
+  document.body.dataset.theme=themeMode.value;
+  try { localStorage.setItem('meteo.dashboard.theme',themeMode.value); } catch {}
+});
+
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(console.error);
 if(window.matchMedia?.('(display-mode: standalone)').matches)document.body.classList.add('standalone');
 syncAlertControls();updateNotificationState();renderFavorites();const initialTab=new URLSearchParams(location.search).get('tab');switchTab(['weather','radar','favorites','alerts'].includes(initialTab)?initialTab:'weather');selectInitialCity();
