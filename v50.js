@@ -101,6 +101,13 @@ function switchV50Tab(name){
   document.querySelectorAll('.tab-panel').forEach(p=>{const on=p.id===`panel-${name}`;p.hidden=!on;p.classList.toggle('active',on);});
   document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
   document.querySelectorAll('.mobile-bottom-nav [data-mobile-tab]').forEach(b=>b.classList.toggle('active',b.dataset.mobileTab===name));
+  document.querySelectorAll('.tabs [data-tab], [data-mobile-tab]').forEach(button=>{
+    const active=(button.dataset.tab??button.dataset.mobileTab)===name;
+    if(active)button.setAttribute('aria-current','page');
+    else button.removeAttribute('aria-current');
+  });
+  const sections=document.querySelector('.journal-sections');
+  if(sections)sections.open=false;
   if(name==='today')renderV50Today();
   if(name==='compare'){renderV50CompareChoices();refreshV50Compare();}
   if(name==='settings')syncV50SettingsUi();
