@@ -66,7 +66,7 @@ function injectSoonRainCard(){
   if(!hero)return;
   const c=document.createElement('div');
   c.id='soonRainCard';c.className='soon-rain-card';
-  c.innerHTML='<div class="emoji">🌦️</div><div><strong id="soonRainTitle">Pluie imminente</strong><small id="soonRainText">Analyse des prochaines 60 minutes…</small></div>';
+  c.innerHTML='<div class="emoji">🌦️</div><div><strong id="soonRainTitle">Pluie dans l’heure</strong><small id="soonRainText">Analyse des prochaines 60 minutes…</small></div>';
   hero.after(c);
 }
 
@@ -167,23 +167,45 @@ function renderPollens(d){
   document.getElementById('airDominantValue').textContent=dominant.value>=0?`pic ${dominant.value.toFixed(1)} grains/m³`:'donnée indisponible';
 }
 
+let soonRainRevision=0;
 async function loadSoonRain(){
   if(typeof currentPlace==='undefined'||!currentPlace)return;
-  const text=document.getElementById('soonRainText'),title=document.getElementById('soonRainTitle');if(!text||!title)return;
-  const u=new URL(FORECAST_URL);
-  u.searchParams.set('latitude',currentPlace.latitude);u.searchParams.set('longitude',currentPlace.longitude);u.searchParams.set('timezone','auto');
-  u.searchParams.set('minutely_15','precipitation,rain,weather_code');u.searchParams.set('forecast_minutely_15','8');
+  const revision=++soonRainRevision;
+  const text=document.getElementById('soonRainText'),title=document.getElementById('soonRainTitle');
+  if(!text||!title)return;
+  title.textContent='Pluie dans l’heure';
+  text.textContent='Actualisation de la prévision…';
+  const url=new URL(FORECAST_URL);
+  url.searchParams.set('latitude',currentPlace.latitude);
+  url.searchParams.set('longitude',currentPlace.longitude);
+  url.searchParams.set('timezone','GMT');
+  url.searchParams.set('timeformat','unixtime');
+  url.searchParams.set('minutely_15','precipitation');
+  url.searchParams.set('forecast_minutely_15','8');
   try{
-    const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error('15-min forecast unavailable');const d=await r.json(),m=d.minutely_15;
-    if(!m?.time?.length)throw new Error('No 15-min data');
-    const now=Date.now();let hit=null;
-    for(let i=0;i<m.time.length;i++){
-      const t=new Date(m.time[i]).getTime(),mins=Math.round((t-now)/60000),p=Number(m.precipitation?.[i]||0);
-      if(mins>=0&&mins<=60&&p>=0.1){hit={mins:Math.max(0,Math.round(mins/5)*5),amount:p,time:m.time[i]};break;}
+    const response=await fetch(url,{signal:AbortSignal.timeout(8000)});
+    if(!response.ok)throw new Error('Prévision indisponible');
+    const data=await response.json();
+    if(revision!==soonRainRevision)return;
+    const now=Date.now()/1000,minutes=data.minutely_15;
+    const rows=(minutes?.time||[]).map((time,i)=>({time,amount:minutes.precipitation?.[i]}))
+      .filter(row=>row.time>=now&&row.time<=now+3600);
+    if(rows.length<4||rows.some(row=>typeof row.amount!=='number'||!Number.isFinite(row.amount)))
+      throw new Error('Prévision incomplète');
+    const hit=rows.find(row=>row.amount>=0.1);
+    if(hit){
+      const delay=Math.max(5,Math.round((hit.time-now)/300)*5);
+      title.textContent='Pluie possible dans environ '+delay+' min';
+      text.textContent=hit.amount.toLocaleString('fr-FR')+' mm prévus sur 15 minutes · Open-Meteo';
+    }else{
+      title.textContent='Pas de pluie significative prévue dans l’heure';
+      text.textContent='Prévision par pas de 15 minutes · Open-Meteo';
     }
-    if(hit){title.textContent='🌧️ Pluie possible bientôt';text.textContent=hit.mins<=5?`Pluie possible très bientôt (${hit.amount.toFixed(1)} mm/15 min).`:`Pluie possible dans ~${hit.mins} min (${hit.amount.toFixed(1)} mm/15 min).`;}
-    else{title.textContent='☂️ Pluie imminente';text.textContent='Pas de pluie significative prévue dans les 60 prochaines minutes.';}
-  }catch(e){console.error(e);text.textContent='Prévision pluie à 15 min indisponible pour le moment.';}
+  }catch{
+    if(revision!==soonRainRevision)return;
+    title.textContent='Prévision de pluie indisponible';
+    text.textContent='Consulte le radar et les prévisions horaires pour suivre la situation.';
+  }
 }
 
 function improveRadar(){
