@@ -157,3 +157,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   body { transition: none; }
   .hero::before { animation: none; }
 }
+
+.home-outlook { margin-block: 16px; }
+.home-outlook h2 { margin: 4px 0 12px; }
+.home-hours { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.home-hours > div { display: grid; gap: 4px; padding: 10px; background: var(--soft); border-radius: 12px; }
+.home-hours small { color: var(--muted); }
+.home-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.home-links a { color: var(--accent); }
+@media (max-width: 420px) {
+  .home-hours { grid-template-columns: 1fr; }
+}
