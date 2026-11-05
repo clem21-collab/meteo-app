@@ -1,7 +1,7 @@
 const V45_VERSION='4.5';
 const V45_ORDER_KEY='meteo-app-home-order-v1';
 const V45_HISTORY_URL='https://historical-forecast-api.open-meteo.com/v1/forecast';
-const V45_DEFAULT_ORDER=['brief','smart','vigilance','current','hourly','chart','air','history','daily'];
+const V45_DEFAULT_ORDER=['current','outlook','radar','daily','hourly','brief','smart','vigilance','chart','air','history'];
 let v45HistoryData=null;
 let v45HistoryKey='';
 let v45SelectedHistory=-1;
@@ -12,6 +12,8 @@ const V45_BLOCKS={
   smart:{label:'Pluie à court terme',icon:'🌧️',get:()=>document.getElementById('v41SmartSummary')},
   vigilance:{label:'Vigilance Météo-France',icon:'⚠️',get:()=>document.getElementById('v41VigilanceCard')},
   current:{label:'Météo actuelle',icon:'🌡️',get:()=>document.querySelector('#panel-weather > .hero')},
+  outlook:{label:'Résumé des prochaines heures',icon:'🕒',get:()=>document.querySelector('.home-outlook')},
+  radar:{label:'Aperçu du radar pluie',icon:'🗺️',get:()=>document.querySelector('.journal-radar')},
   hourly:{label:'Prochaines heures',icon:'🕐',get:()=>document.getElementById('hourly')?.closest('.section')},
   chart:{label:'Graphique 24 heures',icon:'📊',get:()=>document.getElementById('v41ChartSection')},
   air:{label:'Qualité de l’air & pollen',icon:'🌬️',get:()=>document.getElementById('v44AirSection')},
@@ -44,6 +46,10 @@ function readV45Order(){
     const saved=JSON.parse(localStorage.getItem(V45_ORDER_KEY)||'[]');
     if(Array.isArray(saved)){
       const valid=saved.filter(x=>V45_DEFAULT_ORDER.includes(x));
+      const current=valid.indexOf('current');
+      if(current>=0&&!valid.includes('outlook'))valid.splice(current+1,0,'outlook');
+      const outlook=valid.indexOf('outlook');
+      if(outlook>=0&&!valid.includes('radar'))valid.splice(outlook+1,0,'radar');
       V45_DEFAULT_ORDER.forEach(x=>{if(!valid.includes(x))valid.push(x);});
       return valid;
     }
