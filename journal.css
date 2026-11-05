@@ -256,3 +256,21 @@ body.weather-journal .mobile-bottom-nav [data-mobile-tab]:not([data-mobile-tab="
   .weather-journal #journalRadarMap { height: 310px; }
   body.weather-journal .mobile-bottom-nav.v50-scroll-nav { display: none !important; }
 }
+
+.weather-journal .weather-category {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  margin-block: 12px;
+  overflow: hidden;
+}
+.weather-category > summary {
+  cursor: pointer;
+  padding: 16px;
+  color: var(--text);
+}
+.weather-category > summary strong { font-family: var(--journal-serif); font-size: 1.2rem; }
+.weather-category > summary small { display: block; margin-top: 5px; }
+.weather-category[open] > summary { border-bottom: 1px solid var(--border); }
+.weather-category > :not(summary) { margin: 16px; }
+.weather-category > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
