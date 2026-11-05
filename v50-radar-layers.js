@@ -1,4 +1,4 @@
-// Météo V5 — Additional weather map layers (rain, snow, wind, temperature)
+// Météo V5 — Additional weather map layers (rain, snow, wind, temperature, clouds)
 (function initV50RadarLayers(){
   let overlay=null;
   let mode='rain';
@@ -10,6 +10,7 @@
   const CACHE=new Map();
   const METEOFRANCE_URL='https://api.open-meteo.com/v1/meteofrance';
   const GENERIC_URL='https://api.open-meteo.com/v1/forecast';
+  const CLOUD_STOPS=[[0,'#3f7595','0–24'],[25,'#7496ad','25–49'],[50,'#a4bbcc','50–74'],[75,'#e0e8ef','75–100']];
   const AROME_HD='meteofrance_arome_france_hd';
   const METEOFRANCE_SEAMLESS='meteofrance_seamless';
 
@@ -37,7 +38,7 @@
     const panel=getPanel();if(!panel||document.getElementById('v50LayerSwitcher'))return;
     const box=document.createElement('div');
     box.id='v50LayerSwitcher';box.className='v50-layer-switcher';
-    box.innerHTML=`<button type="button" data-v50-layer="rain" class="active">🌧️ Pluie</button><button type="button" data-v50-layer="snow">❄️ Neige</button><button type="button" data-v50-layer="wind">💨 Vent</button><button type="button" data-v50-layer="temp">🌡️ Température</button>`;
+    box.innerHTML=`<button type="button" data-v50-layer="rain" class="active">🌧️ Pluie</button><button type="button" data-v50-layer="snow">❄️ Neige</button><button type="button" data-v50-layer="wind">💨 Vent</button><button type="button" data-v50-layer="temp">🌡️ Température</button><button type="button" data-v50-layer="cloud">Nuages</button>`;
     const radarCard=panel.querySelector('.radar-card');
     (radarCard||panel.firstElementChild)?.insertAdjacentElement('beforebegin',box);
     const legend=document.createElement('div');legend.setAttribute('role','status');legend.id='v50LayerLegend';legend.className='v50-layer-legend';legend.textContent='Radar de précipitations en direct.';
@@ -105,6 +106,7 @@
   function cacheKey(p,layerMode,snowEnd){return `${layerMode}:${layerMode==='snow'?snowEnd+':':''}${p.lat.toFixed(3)},${p.lon.toFixed(3)}`;}
   function usableCurrent(d,layerMode=mode){
     if(!d||typeof d!=='object')return false;
+    if(layerMode==='cloud')return validNumber(d.cloud_cover)&&d.cloud_cover>=0&&d.cloud_cover<=100;
     return layerMode==='wind'?validWind(d)&&validNumber(d.wind_gusts_10m)&&d.wind_gusts_10m>=0:layerMode==='snow'?validSnow(d):validNumber(d.temperature_2m);
   }
 
@@ -121,7 +123,7 @@
       u.searchParams.set('hourly','snowfall');
       u.searchParams.set('forecast_hours','3');
     }else{
-      u.searchParams.set('current',layerMode==='wind'?'wind_speed_10m,wind_gusts_10m':'temperature_2m');
+      u.searchParams.set('current',layerMode==='wind'?'wind_speed_10m,wind_gusts_10m':layerMode==='cloud'?'cloud_cover':'temperature_2m');
     }
     if(model)u.searchParams.set('models',model);
     const timeout=AbortSignal.timeout(5000);
@@ -140,6 +142,19 @@
     const out=new Array(points.length),missing=[];
     points.forEach((p,i)=>{const hit=CACHE.get(cacheKey(p,requestedMode,snowEnd));if(hit&&Date.now()-hit.time<10*60*1000)out[i]=hit.data;else missing.push({p,i});});
     if(!missing.length)return out;
+
+    if(requestedMode==='cloud'){
+      const clouds=await requestBatch(missing.map(entry=>entry.p),GENERIC_URL,null,requestedMode,signal,snowEnd);
+      if(signal.aborted)return out;
+      if(CACHE.size>500)CACHE.clear();
+      missing.forEach((entry,index)=>{
+        const data=clouds[index];
+        if(!usableCurrent(data,requestedMode))return;
+        out[entry.i]={...data,_source:'Open-Meteo'};
+        CACHE.set(cacheKey(entry.p,requestedMode,snowEnd),{time:Date.now(),data:out[entry.i]});
+      });
+      return out;
+    }
 
     let primary=[];
     try{primary=await requestBatch(missing.map(x=>x.p),METEOFRANCE_URL,AROME_HD,requestedMode,signal,snowEnd);}catch{}
@@ -177,10 +192,12 @@
   const SNOW_STOPS=[[0.1,'#8ad9ff','0,1 à < 0,5'],[0.5,'#38a5ef','0,5 à < 1'],[1,'#3859df','1 à < 2'],[2,'#8c3ed3','2 et +']];
   const TEMP_STOPS=[[-Infinity,'#5146b8','< −10'],[-10,'#2563eb','−10 à < 0'],[0,'#38bdf8','0 à < 10'],[10,'#22a76f','10 à < 20'],[20,'#eab308','20 à < 30'],[30,'#ea580c','30 à < 40'],[40,'#dc2626','40 et +']];
   function fieldStops(layerMode){
+    if(layerMode==='cloud')return CLOUD_STOPS;
     return layerMode==='temp'?TEMP_STOPS:layerMode==='snow'?SNOW_STOPS:WIND_STOPS;
   }
   function validSnow(d){return validNumber(d?.snowfall)&&d.snowfall>=0;}
   function fieldMetric(d,layerMode){
+    if(layerMode==='cloud')return usableCurrent(d,layerMode)?d.cloud_cover:null;
     if(layerMode==='snow')return validSnow(d)?d.snowfall:null;
     if(layerMode==='temp')return validNumber(d?.temperature_2m)?d.temperature_2m:null;
     return validWind(d)?d.wind_speed_10m:null;
@@ -245,6 +262,9 @@
         `Cumul de ${snowPeriod(weatherField.snowEnd)}`,
         sample._source+' via Open-Meteo'
       ].join('\n');
+    }else if(mode==='cloud'){
+      detail.textContent=value===null?'Couverture nuageuse indisponible à cet endroit.':
+        `Couverture nuageuse estimée · ${Math.round(value)} %\nModèle Open-Meteo`;
     }else if(mode==='temp'){
       detail.textContent=value===null?'Température indisponible à cet endroit.':[
         `Température estimée à 2 m · ${value.toLocaleString('fr-FR',{maximumFractionDigits:1})} °C`,
@@ -269,14 +289,16 @@
       const coverage=valid.length===data.length?'':' · couverture partielle';
       const dry=valid.some(d=>d.snowfall>=0.1)?'':' · moins de 0,1 cm aux points disponibles';
       el.textContent=valid.length?`Neige prévue de ${snowPeriod(snowEnd)} · ${sources} via Open-Meteo${coverage}${dry} · toucher pour les détails.`:'Prévision neige indisponible sur cette zone.';
+    }else if(layerMode==='cloud'){
+      el.textContent=valid.length?`Couverture nuageuse modélisée · Open-Meteo · carte interpolée (${valid.length}/${data.length} points) · toucher pour les détails.`:'Couverture nuageuse indisponible sur cette zone.';
     }else if(layerMode==='temp'){
       el.textContent=valid.length?`Température estimée à 2 m · ${sources} via Open-Meteo · ${valid.length}/${data.length} points · toucher pour les détails.`:'Température indisponible sur cette zone.';
     }else{
       el.textContent=valid.length?'Vent moyen à 10 m • '+sources+' via Open-Meteo • carte interpolée ('+valid.length+'/'+data.length+' points), toucher pour les détails. ':'Vent indisponible sur cette zone. Réessaie dans quelques instants. ';
     }
     const scale=document.createElement('div');scale.className='v50-weather-scale';
-    const unit=layerMode==='temp'?'°C':snow?'cm':'km/h';
-    scale.setAttribute('aria-label',layerMode==='temp'?'Température en degrés Celsius, seuil de gel à 0 °C':snow?'Cumul de neige prévu en cm':'Vent moyen en km/h');
+    const unit=layerMode==='cloud'?'%':layerMode==='temp'?'°C':snow?'cm':'km/h';
+    scale.setAttribute('aria-label',layerMode==='cloud'?'Couverture nuageuse en pourcentage':layerMode==='temp'?'Température en degrés Celsius, seuil de gel à 0 °C':snow?'Cumul de neige prévu en cm':'Vent moyen en km/h');
     scale.innerHTML=fieldStops(layerMode).map(([,color,label])=>'<span><i style="background:'+color+'"></i>'+label+' '+unit+'</span>').join('');
     el.appendChild(scale);
   }
@@ -288,7 +310,7 @@
     request=pending;
     const field=samplePoints();
     if(field.se.x<=field.nw.x||field.se.y<=field.nw.y)return;
-    setLegend(mode==='wind'?'Chargement du vent Météo-France AROME HD…':mode==='snow'?'Chargement de la neige Météo-France…':'Chargement de la température Météo-France…');
+    setLegend(mode==='cloud'?'Chargement de la couverture nuageuse…':mode==='wind'?'Chargement du vent Météo-France AROME HD…':mode==='snow'?'Chargement de la neige Météo-France…':'Chargement de la température Météo-France…');
     const snowEnd=mode==='snow'?(Math.floor(Date.now()/3600000)+1)*3600:null;
     const data=await fetchPoints(field.points,pending.signal,snowEnd).catch(()=>field.points.map(()=>({})));
     if(request!==pending)return;
@@ -318,7 +340,7 @@
       if(getPanel().hidden)clearOverlay();
       else refreshTimer=setTimeout(renderOverlay,350);
     }).observe(getPanel(),{attributes:true,attributeFilter:['hidden']});
-    const saved=localStorage.getItem('meteo-app-v50-map-layer');if(['rain','snow','wind','temp'].includes(saved))mode=saved;
+    const saved=localStorage.getItem('meteo-app-v50-map-layer');if(['rain','snow','wind','temp','cloud'].includes(saved))mode=saved;
     setMode(mode);
   }
   let tries=0;const timer=setInterval(()=>{inject();if(bindMap()&&getPanel()){clearInterval(timer);boot();}if(++tries>30)clearInterval(timer);},300);
