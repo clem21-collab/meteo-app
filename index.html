@@ -6,22 +6,22 @@
   <meta name="theme-color" content="#f5ecd9">
   <meta name="description" content="Application météo avec prévisions, favoris et radar pluie.">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icon.svg">
-  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="icon" href="icon.svg?v=2">
+  <link rel="apple-touch-icon" href="icon.svg?v=2">
   <link rel="preconnect" href="https://api.open-meteo.com">
   <link rel="preconnect" href="https://geocoding-api.open-meteo.com">
   <link rel="stylesheet" href="style.css?v=3.1">
-  <title>Clément Météo</title>
+  <title>Météo</title>
   <link rel="stylesheet" href="forecast48.css?v=1">
   <link rel="stylesheet" href="dashboard.css?v=2">
-  <link rel="stylesheet" href="journal.css?v=3">
+  <link rel="stylesheet" href="journal.css?v=4">
 </head>
 <body class="weather-clear weather-journal">
   <div id="weatherFx" class="weather-fx" aria-hidden="true"></div>
 
   <main class="app-shell">
     <div class="journal-masthead">
-      <strong>Clément Météo</strong>
+      <strong>Météo</strong>
       <span>Journal météorologique</span>
     </div>
     <header class="topbar">
@@ -141,8 +141,8 @@
     <section id="panel-radar" class="tab-panel" hidden>
       <div class="radar-header">
         <div>
-          <h2>Radar pluie</h2>
-          <p class="muted">Historique des précipitations des 2 dernières heures.</p>
+          <h2 class="journal-heading">Carte météo</h2>
+          <p class="muted">Explore les observations et les prévisions de pluie, puis change de couche selon tes besoins.</p>
         </div>
         <button id="radarPlayBtn" class="secondary-button" type="button">▶ Animer</button>
       </div>
@@ -161,7 +161,7 @@
     <section id="panel-favorites" class="tab-panel" hidden>
       <div class="section-heading">
         <div>
-          <h2>Mes villes favorites</h2>
+          <h2 class="journal-heading">Mes villes favorites</h2>
           <p class="muted">Appuie sur ☆ à côté du nom d’une ville pour l’enregistrer.</p>
         </div>
       </div>
@@ -171,22 +171,23 @@
     <section id="panel-alerts" class="tab-panel" hidden>
       <div class="alerts-heading">
         <div>
-          <h2>Alertes météo</h2>
-          <p class="muted">L’application analyse les prochaines heures et te signale les conditions importantes.</p>
+          <h2 class="journal-heading">Alertes météo</h2>
+          <p class="muted">Retrouve les risques prévus près de ta ville et règle les notifications que tu veux recevoir.</p>
         </div>
         <button id="notificationBtn" class="secondary-button" type="button">Activer les notifications</button>
       </div>
 
       <div class="alerts-grid">
         <article class="glass-card alerts-card">
-          <h3>Alertes détectées</h3>
+          <h3>Risques près de toi</h3>
+          <p><a href="https://vigilance.meteofrance.fr/">Consulter la vigilance officielle en France</a></p>
           <div id="alertsList" class="detected-alerts">
             <div class="empty-state">Chargement des prévisions…</div>
           </div>
         </article>
 
         <article class="glass-card alerts-card">
-          <h3>Mes réglages</h3>
+          <h3>Mes préférences d’alerte</h3>
 
           <label class="setting-row">
             <span>
@@ -265,9 +266,9 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="forecast48.js?v=1"></script>
-  <script src="app.js?v=3.3.6"></script>
+  <script src="app.js?v=3.3.7"></script>
   <script src="journal.js?v=3"></script>
-  <script src="push-client.js?v=2.3"></script>
+  <script src="push-client.js?v=2.4"></script>
   <script src="v50-premium-gates.js?v=5.0.3"></script>
   <script src="v50-radar-layers.js?v=5.0.7"></script>
 </body>
