@@ -12,6 +12,7 @@
   <link rel="preconnect" href="https://geocoding-api.open-meteo.com">
   <link rel="stylesheet" href="style.css?v=3.1">
   <title>Météo V3.2</title>
+  <link rel="stylesheet" href="forecast48.css?v=1">
 </head>
 <body class="weather-clear">
   <div id="weatherFx" class="weather-fx" aria-hidden="true"></div>
@@ -80,10 +81,10 @@
 
       <section class="section">
         <div class="section-heading">
-          <h2>Prochaines heures</h2>
+          <h2>Prévisions sur 48 heures</h2>
           <span id="updatedAt" class="muted"></span>
         </div>
-        <div id="hourly" class="hourly-scroller"></div>
+        <div id="hourly" class="f48"></div>
       </section>
 
       <section class="section">
@@ -218,7 +219,8 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="app.js?v=3.3.2"></script>
+  <script src="forecast48.js?v=1"></script>
+  <script src="app.js?v=3.3.3"></script>
   <script src="push-client.js?v=2.2"></script>
   <script src="v50-premium-gates.js?v=5.0.3"></script>
   <script src="v50-radar-layers.js?v=5.0.6"></script>
