@@ -142,6 +142,27 @@ const sample = (speed, gust = 72) => ({wind_speed_10m: speed, wind_gusts_10m: gu
   context.test.setMode('rain');
   assert.equal(layers.length,0);
 
+  let cloudCalls = 0;
+  fetchImpl = async url => {
+    cloudCalls++;
+    assert.equal(url.pathname, '/v1/forecast');
+    assert.equal(url.searchParams.get('current'), 'cloud_cover');
+    return rows(url,i=>({cloud_cover:i===0?null:i===24?80:50}));
+  };
+  context.test.setMode('cloud');
+  await tick();
+  assert.equal(layers.length,1);
+  assert.equal(pixels[3],0,'missing cloud coverage stays transparent');
+  assert.deepEqual([...pixels.slice(-4)],[224,232,239,255]);
+  assert.match(legend.textContent,/24\/25 points/);
+  assert.match(legend.scale.innerHTML,/75–100 %/);
+  context.test.showWeatherDetails({latlng:[3,47]});
+  assert.match(popup,/50 %.*\n.*Open-Meteo/);
+  await context.test.renderOverlay();
+  assert.equal(cloudCalls,2,'only the missing sample is retried');
+  context.test.setMode('rain');
+  assert.equal(layers.length,0);
+
   const sw = fs.readFileSync('sw.js', 'utf8');
   assert.match(sw, /wind-field-2/);
   for (const file of ['index.html', 'push-client.js']) {
