@@ -1,7 +1,7 @@
 const V45_VERSION='4.5';
-const V45_ORDER_KEY='meteo-app-home-order-v1';
+const V45_ORDER_KEY='meteo-app-home-order-v2';
 const V45_HISTORY_URL='https://historical-forecast-api.open-meteo.com/v1/forecast';
-const V45_DEFAULT_ORDER=['current','outlook','radar','daily','hourly','brief','smart','vigilance','chart','air','history'];
+const V45_DEFAULT_ORDER=['current','radar','outlook','hourly','daily','vigilance','smart','air','brief','chart','history'];
 let v45HistoryData=null;
 let v45HistoryKey='';
 let v45SelectedHistory=-1;
@@ -65,6 +65,8 @@ function applyV45Order(){
   const panel=document.getElementById('panel-weather');if(!panel)return;
   const order=readV45Order();
   order.forEach(key=>{const el=V45_BLOCKS[key]?.get?.();if(el&&el.parentElement===panel)panel.appendChild(el);});
+  const customize=document.getElementById('v45CustomizeBar');
+  if(customize)panel.appendChild(customize);
   renderV45OrderList();
 }
 
@@ -87,6 +89,8 @@ function injectV45Customize(panel){
 }
 
 function openV45OrderModal(){
+  const customize=document.getElementById('v45CustomizeBar');
+  if(customize)panel.appendChild(customize);
   renderV45OrderList();
   const modal=document.getElementById('v45OrderModal');if(modal)modal.hidden=false;
   document.body.classList.add('v45-modal-open');
