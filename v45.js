@@ -120,8 +120,6 @@ function injectV45Customize(panel){
 }
 
 function openV45OrderModal(){
-  const customize=document.getElementById('v45CustomizeBar');
-  if(customize)panel.appendChild(customize);
   renderV45OrderList();
   const modal=document.getElementById('v45OrderModal');if(modal)modal.hidden=false;
   document.body.classList.add('v45-modal-open');
