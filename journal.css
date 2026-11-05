@@ -274,3 +274,47 @@ body.weather-journal .mobile-bottom-nav [data-mobile-tab]:not([data-mobile-tab="
 .weather-category[open] > summary { border-bottom: 1px solid var(--border); }
 .weather-category > :not(summary) { margin: 16px; }
 .weather-category > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+
+/* Compact daily dashboard, with a consistent reading rhythm. */
+.weather-journal .journal-masthead { padding-block: 12px; }
+.weather-journal .journal-masthead strong { font-size: 1.6rem; letter-spacing: -.03em; }
+.weather-journal .topbar { gap: 10px; margin-block: 8px; }
+.weather-journal .topbar .eyebrow { display: none; }
+.weather-journal .topbar h1 { font-size: 1.7rem; }
+.weather-journal #placeDetail { margin-bottom: 0; font-size: .8rem; }
+.weather-journal .top-actions { gap: 6px; }
+.weather-update { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-block: 8px; }
+.weather-update .status { margin: 0; flex: 1; }
+.weather-update button { flex-shrink: 0; min-height: 44px; }
+body.weather-journal #panel-weather .hero { min-height: 280px; gap: 60px; border-radius: 12px; }
+.weather-journal .hero > div:first-child { padding: 8px 12px; }
+.weather-journal .hero .journal-city { font-size: 1.4rem; }
+.weather-journal .hero .temperature { font-size: clamp(3.5rem,12vw,5.4rem); }
+.weather-journal .hero .metrics strong { font-size: .85rem; }
+.weather-journal #soonRainCard {
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--accent);
+  background: var(--panel);
+  border-radius: 8px;
+  color: var(--text);
+  margin-block: 12px;
+  padding: 12px;
+}
+.weather-journal .weather-category { border-radius: 12px; }
+.weather-journal .weather-category summary { padding: 18px; }
+.weather-journal .weather-category summary strong { font-family: inherit; font-size: 1rem; }
+.weather-journal .weather-category summary small { line-height: 1.5; }
+.weather-journal .home-hours { padding-block: 4px; }
+.weather-journal .home-hours strong { font-family: inherit; }
+.weather-journal .journal-heading { font-size: clamp(1.3rem,4vw,1.8rem); }
+@media(min-width:900px) {
+  .weather-journal #panel-weather > .hero { grid-column: 1; grid-row: 1; }
+  .weather-journal #panel-weather > .journal-radar { grid-column: 2; grid-row: 1 / span 2; }
+  .weather-journal #panel-weather > #soonRainCard { grid-column: 1; grid-row: 2; margin: 0; }
+}
+@media(max-width:420px) {
+  .weather-journal .top-actions { gap: 4px; }
+  .weather-update { align-items: stretch; }
+  .weather-update .status { font-size: .75rem; padding: 8px; }
+  .weather-update button { font-size: .75rem; padding-inline: 8px; }
+}
