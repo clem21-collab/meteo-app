@@ -318,3 +318,21 @@ body.weather-journal #panel-weather .hero { min-height: 280px; gap: 60px; border
   .weather-update .status { font-size: .75rem; padding: 8px; }
   .weather-update button { font-size: .75rem; padding-inline: 8px; }
 }
+
+/* The three detailed sections now have their own navigation destinations. */
+body.weather-journal .mobile-bottom-nav.v50-scroll-nav {
+  display: flex !important;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+  gap: 4px;
+}
+body.weather-journal .mobile-bottom-nav button[data-mobile-tab^="weather-"] { display: flex !important; }
+body.weather-journal .mobile-bottom-nav button { flex: 0 0 76px; min-height: 54px; }
+body.weather-journal .mobile-bottom-nav button small { white-space: nowrap; }
+.weather-category-page > header { margin-bottom: 20px; }
+.weather-category-page > :not(header) { margin-block: 20px; }
+.weather-category-page { scroll-margin-top: 16px; }
+@media(min-width:900px) {
+  body.weather-journal .mobile-bottom-nav.v50-scroll-nav { display: none !important; }
+}
