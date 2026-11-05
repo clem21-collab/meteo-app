@@ -14,7 +14,7 @@
   <title>Clément Météo</title>
   <link rel="stylesheet" href="forecast48.css?v=1">
   <link rel="stylesheet" href="dashboard.css?v=2">
-  <link rel="stylesheet" href="journal.css?v=2">
+  <link rel="stylesheet" href="journal.css?v=3">
 </head>
 <body class="weather-clear weather-journal">
   <div id="weatherFx" class="weather-fx" aria-hidden="true"></div>
@@ -105,7 +105,10 @@
 
       <section class="section journal-radar" aria-labelledby="journalRadarTitle">
         <h2 id="journalRadarTitle" class="journal-heading">Radar pluie</h2>
-        <div id="journalRadarMap" aria-label="Carte des observations et prévisions de pluie"></div>
+        <div class="journal-map-stage">
+          <div id="journalRadarMap" aria-label="Carte des observations et prévisions de pluie"></div>
+          <span id="journalRadarStamp" class="journal-radar-stamp" aria-hidden="true" hidden></span>
+        </div>
         <div class="journal-radar-controls">
           <button id="journalRadarPlay" type="button" disabled>▶ Animer</button>
           <p id="journalRadarStatus" class="muted" role="status">Chargement du radar…</p>
@@ -113,8 +116,10 @@
         </div>
         <label class="sr-only" for="journalRadarTime">Échéance de la carte pluie</label>
         <input id="journalRadarTime" type="range" min="0" max="0" value="0" step="1" disabled>
+        <div id="journalRadarTicks" class="journal-radar-ticks" aria-hidden="true"></div>
         <div class="journal-radar-phases">
-          <span>Observations</span><span id="journalForecastPhase" hidden>Prévisions AROME‑PI</span>
+          <button id="journalObservedPhase" type="button" aria-pressed="false" disabled>Dernière observation</button>
+          <button id="journalForecastPhase" type="button" aria-pressed="false" disabled>Première prévision</button>
         </div>
       </section>
 
@@ -261,7 +266,7 @@
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="forecast48.js?v=1"></script>
   <script src="app.js?v=3.3.6"></script>
-  <script src="journal.js?v=2"></script>
+  <script src="journal.js?v=3"></script>
   <script src="push-client.js?v=2.3"></script>
   <script src="v50-premium-gates.js?v=5.0.3"></script>
   <script src="v50-radar-layers.js?v=5.0.7"></script>

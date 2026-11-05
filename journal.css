@@ -167,3 +167,31 @@ body.weather-journal .mobile-bottom-nav button.active small { color: inherit; }
 #journalRadarPlay { background: var(--ink-button); color: #fff7e5; min-height: 44px; }
 #journalRadarPlay:disabled { opacity: .55; }
 #homeRadar { margin-inline-start: auto; min-height: 44px; }
+.journal-map-stage { position: relative; }
+.journal-radar-stamp {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: .4rem .65rem;
+  border-radius: 4px;
+  background: var(--ink-button);
+  color: #fff7e5;
+  font-size: .8rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+.journal-radar-stamp[data-phase="forecast"] { background: #893b1f; }
+.journal-radar-ticks { position: relative; margin-inline: 1.25rem; min-height: 1.2em; font-size: .72rem; color: var(--muted); }
+.journal-radar-ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.journal-radar-phases { gap: .35rem; }
+.weather-journal .journal-radar-phases button {
+  flex: 1;
+  min-height: 44px;
+  padding: .35rem;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: .8rem;
+}
+.weather-journal .journal-radar-phases button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 -2px var(--accent); }
+.weather-journal .journal-radar-phases button:disabled { opacity: .65; }
