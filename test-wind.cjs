@@ -126,6 +126,22 @@ const sample = (speed, gust = 72) => ({wind_speed_10m: speed, wind_gusts_10m: gu
   context.test.setMode('rain');
   assert.equal(layers.length,0);
 
+  fetchImpl = async url => {
+    assert.equal(url.searchParams.get('current'),'temperature_2m');
+    return rows(url,i=>({temperature_2m:i===0?-15:i===24?32:0,time:'2026-11-04T19:00'}));
+  };
+  context.test.setMode('temp');
+  await tick();
+  assert.equal(layers.length,1);
+  assert.deepEqual([...pixels.slice(0,4)],[81,70,184,255]);
+  assert.deepEqual([...pixels.slice(-4)],[234,88,12,255]);
+  assert.match(legend.scale.innerHTML,/0 à < 10 °C/);
+  context.test.showWeatherDetails({latlng:[3,47]});
+  assert.match(popup,/0 °C.*\n.*19:00.*\n.*AROME France HD/);
+  assert.equal(context.test.fieldValue({size:1,data:[{temperature_2m:null}],layerMode:'temp'},.5,.5),null);
+  context.test.setMode('rain');
+  assert.equal(layers.length,0);
+
   const sw = fs.readFileSync('sw.js', 'utf8');
   assert.match(sw, /wind-field-2/);
   for (const file of ['index.html', 'push-client.js']) {
@@ -134,5 +150,5 @@ const sample = (speed, gust = 72) => ({wind_speed_10m: speed, wind_gusts_10m: gu
       assert.ok(sw.includes("'./" + url[1] + "'"), url[1] + ' must be precached');
     }
   }
-  console.log('PASS: wind and snow rasters, hourly snow, tap details, interpolation, fallback, request abort, cache and return to rain');
+  console.log('PASS: wind, snow and temperature rasters, hourly snow, tap details, interpolation, fallback, request abort, cache and return to rain');
 })().catch(error => { console.error(error); process.exitCode = 1; });
