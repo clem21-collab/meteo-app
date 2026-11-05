@@ -11,9 +11,9 @@
   <link rel="preconnect" href="https://api.open-meteo.com">
   <link rel="preconnect" href="https://geocoding-api.open-meteo.com">
   <link rel="stylesheet" href="style.css?v=3.1">
-  <title>Météo V3.2</title>
+  <title>Clément Météo</title>
   <link rel="stylesheet" href="forecast48.css?v=1">
-  <link rel="stylesheet" href="dashboard.css?v=1">
+  <link rel="stylesheet" href="dashboard.css?v=2">
 </head>
 <body class="weather-clear">
   <div id="weatherFx" class="weather-fx" aria-hidden="true"></div>
@@ -84,6 +84,18 @@
           <div><span>Rafales</span><strong id="gust">-- km/h</strong></div>
           <div><span>Pression</span><strong id="pressure">-- hPa</strong></div>
           <div><span>UV</span><strong id="uv">--</strong></div>
+        </div>
+      </section>
+
+      <section class="glass-card home-outlook" aria-labelledby="homeOutlookTitle">
+        <p class="section-label">PRÉVISIONS LOCALES</p>
+        <h2 id="homeOutlookTitle">Les 3 prochaines heures</h2>
+        <div id="homeHours" class="home-hours">Chargement…</div>
+        <p id="homeAlert" class="muted">Analyse des alertes locales…</p>
+        <div class="home-links">
+          <button id="homeRadar" type="button">Ouvrir la carte météo</button>
+          <button id="homeAlerts" type="button">Alertes locales</button>
+          <a href="https://vigilance.meteofrance.fr/">Vigilance officielle en France</a>
         </div>
       </section>
 
@@ -228,9 +240,9 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="forecast48.js?v=1"></script>
-  <script src="app.js?v=3.3.4"></script>
+  <script src="app.js?v=3.3.5"></script>
   <script src="push-client.js?v=2.2"></script>
   <script src="v50-premium-gates.js?v=5.0.3"></script>
-  <script src="v50-radar-layers.js?v=5.0.6"></script>
+  <script src="v50-radar-layers.js?v=5.0.7"></script>
 </body>
 </html>
