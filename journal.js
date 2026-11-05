@@ -3,11 +3,16 @@
   const status = document.getElementById('journalRadarStatus');
   const slider = document.getElementById('journalRadarTime');
   const play = document.getElementById('journalRadarPlay');
+  const observedPhase = document.getElementById('journalObservedPhase');
+  const stamp = document.getElementById('journalRadarStamp');
+  const ticks = document.getElementById('journalRadarTicks');
+  const shortTime = new Intl.DateTimeFormat('fr-FR',{hour:'2-digit',minute:'2-digit'});
   const forecastPhase = document.getElementById('journalForecastPhase');
   const refreshInterval = 10 * 60 * 1000;
   const timeFormat = new Intl.DateTimeFormat('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
   let preview, position, playback;
   let frames = [];
+  let observedCount = 0;
   let visible = false;
   let loading = false;
   let updatedAt = 0;
@@ -29,7 +34,7 @@
     slider.value = index;
     const label = (frame.bounds?'Prévision AROME‑PI · ':'Observation RainViewer · ')+timeFormat.format(frame.time);
     slider.setAttribute('aria-valuetext',label);
-    status.textContent = label;
+    status.textContent = 'Chargement · '+label;
     preview.pending?.remove();
     const layer = frame.bounds
       ? L.imageOverlay(frame.url,frame.bounds,{opacity:0,interactive:false,alt:''})
@@ -43,7 +48,7 @@
       layer.remove();
       preview.pending = null;
       stop();
-      status.textContent = 'Image indisponible pour '+label.toLowerCase()+'.';
+      status.textContent = preview.radar?'Image indisponible · image précédente affichée.':'Image radar indisponible.';
     }
     layer.once('load',()=>{
       if(revision!==frameRevision) return;
@@ -52,6 +57,12 @@
       layer.setOpacity(.75);
       preview.radar?.remove();
       preview.radar = layer;
+      status.textContent = label;
+      stamp.hidden = false;
+      stamp.dataset.phase = frame.bounds?'forecast':'observed';
+      stamp.textContent = (frame.bounds?'Prévision':'Observation')+' · '+shortTime.format(frame.time);
+      observedPhase.setAttribute('aria-pressed',String(!frame.bounds));
+      forecastPhase.setAttribute('aria-pressed',String(Boolean(frame.bounds)));
       preview.pending = null;
     });
     if(frame.bounds) layer.once('error',failed);
@@ -100,7 +111,17 @@
       })).filter(frame=>frame.time>now&&frame.time<=now+3*60*60*1000).sort((a,b)=>a.time-b.time) : [];
       if(!past.length&&!future.length) throw new Error('Aucune image disponible');
       frames = [...past,...future];
-      forecastPhase.hidden = !future.length;
+      observedCount = past.length;
+      observedPhase.disabled = !past.length;
+      forecastPhase.disabled = !future.length;
+      forecastPhase.textContent = future.length?'Première prévision':'Prévisions indisponibles';
+      const marks = new Set([0,past.length-1,frames.length-1]);
+      ticks.replaceChildren(...[...marks].filter(i=>frames[i]).map(i=>{
+        const tick = document.createElement('span');
+        tick.style.left = frames.length===1?'0%':(i*100/(frames.length-1))+'%';
+        tick.textContent = shortTime.format(frames[i].time);
+        return tick;
+      }));
       slider.max = frames.length-1;
       slider.disabled = play.disabled = frames.length<2;
       if(past.length&&!preview.observedCredit){preview.map.attributionControl.addAttribution('<a href="https://www.rainviewer.com/">RainViewer</a>');preview.observedCredit=true;}
@@ -115,6 +136,8 @@
     }
   }
 
+  observedPhase.addEventListener('click',()=>{stop();showFrame(observedCount-1);});
+  forecastPhase.addEventListener('click',()=>{stop();showFrame(observedCount);});
   slider.addEventListener('input',()=>{stop();showFrame(Number(slider.value));});
   play.addEventListener('click',()=>{
     if(playback){stop();return;}
@@ -127,8 +150,8 @@
       index=(index+1)%frames.length;
       showFrame(index);
     };
-    advance();
     playback=setInterval(advance,1000);
+    advance();
   });
   document.addEventListener('visibilitychange',()=>{if(document.hidden) stop();else showObservation();});
   document.addEventListener('meteo-place-change',()=>{
