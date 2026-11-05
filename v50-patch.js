@@ -1,7 +1,7 @@
 // V5.0 finishing layer: branding, display units and radar mode state.
 (function finishV50(){
-  document.title='Météo V5.0';
-  const eyebrow=document.querySelector('.place-block .eyebrow');if(eyebrow)eyebrow.textContent='MÉTÉO V5.0';
+  document.title='Météo';
+  const eyebrow=document.querySelector('.place-block .eyebrow');if(eyebrow)eyebrow.textContent='CONDITIONS LOCALES';
   injectV50UnitControls();
   patchV50UnitRenders();
   patchV50RadarModeState();

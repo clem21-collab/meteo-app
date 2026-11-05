@@ -195,3 +195,32 @@ body.weather-journal .mobile-bottom-nav button.active small { color: inherit; }
 }
 .weather-journal .journal-radar-phases button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 -2px var(--accent); }
 .weather-journal .journal-radar-phases button:disabled { opacity: .65; }
+
+/* Shared controls across the map, saved places, alerts and settings. */
+.weather-journal .app-shell a { color: var(--accent); }
+.weather-journal :is(.section-heading,.alerts-heading,.radar-header,.v50-page-head) > div { min-width: 0; }
+.weather-journal :is(.section-heading,.alerts-heading,.radar-header,.v50-page-head) h2 { color: var(--text); }
+.weather-journal :is(.favorite-card,.detected-alert,.setting-row,.setting-block,.v50-settings-card label) {
+  background: var(--panel);
+  border-color: var(--border);
+  border-radius: 5px;
+}
+.weather-journal :is(.favorite-main,.favorite-remove,.tab,.secondary-button) {
+  color: var(--text);
+  min-height: 44px;
+}
+.weather-journal :is(#favoriteFindCity,.favorite-remove,.theme-control select) { margin-block: 4px; }
+.weather-journal :is(.tabs,.v50-layer-switcher) { gap: 5px; }
+.weather-journal .tabs .tab.active,
+body.weather-journal #v50LayerSwitcher button.active {
+  background: var(--ink-button);
+  color: #fff7e5;
+  border-color: var(--ink-button);
+}
+body.weather-journal #v50LayerSwitcher button { min-height: 44px; color: var(--text); }
+.weather-journal .alerts-card h3 { font-size: 1.25rem; }
+.weather-journal input:is([type="range"],[type="checkbox"]) { accent-color: var(--accent); }
+@media(max-width:700px) {
+  .weather-journal .mobile-bottom-nav button { min-height: 44px; }
+  .weather-journal :is(.radar-header,.alerts-heading) { flex-wrap: wrap; gap: .5rem; }
+}
