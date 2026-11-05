@@ -96,6 +96,9 @@ function applyV45Order(){
     section.hidden=section.children.length===1;
     panel.appendChild(section);
   }
+  const hero=V45_BLOCKS.current.get();
+  const rain=document.getElementById('soonRainCard');
+  if(hero&&rain)hero.after(rain);
   const customize=document.getElementById('v45CustomizeBar');
   if(customize)panel.appendChild(customize);
   renderV45OrderList();
