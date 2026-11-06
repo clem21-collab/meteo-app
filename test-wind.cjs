@@ -42,7 +42,7 @@ const context = {
       }),
       toDataURL: () => 'data:image/png;base64,test'
     } : {style: {}, setAttribute() {}},
-    getElementById: id => ({'v50LayerLegend': legend, 'panel-radar': panel})[id],
+    getElementById: id => ({v50LayerSwitcher: {}, v50LayerLegend: legend, 'panel-radar': panel})[id],
     querySelectorAll: () => []
   },
   fetch: (...args) => fetchImpl(...args)

@@ -76,7 +76,7 @@
     else if(typeof mfForecastLayer!=='undefined')mfForecastLayer?.remove();
     if(typeof removeV50StormLayer==='function')removeV50StormLayer();
     mRemoveRadar();
-    if(!getPanel().hidden)renderOverlay();
+    if(!getPanel().hidden && getMap())renderOverlay();
   }
 
   function mRemoveRadar(){const m=getMap();if(m&&typeof radarLayer!=='undefined'&&radarLayer)m.removeLayer(radarLayer);}
@@ -348,5 +348,6 @@
     const saved=localStorage.getItem('meteo-app-v50-map-layer');if(['rain','snow','wind','temp','cloud'].includes(saved))mode=saved;
     setMode(mode);
   }
+  inject();
   let tries=0;const timer=setInterval(()=>{inject();if(bindMap()&&getPanel()){clearInterval(timer);boot();}if(++tries>30)clearInterval(timer);},300);
 })();
