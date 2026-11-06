@@ -26,7 +26,47 @@ function saveFavorites(a){localStorage.setItem(FAVORITES_KEY,JSON.stringify(a));
 function isFavorite(p){return!!p&&loadFavorites().some(x=>placeKey(x)===placeKey(p));}
 function updateFavoriteButton(){if(!currentPlace)return;const active=isFavorite(currentPlace),b=$('favoriteBtn');b.classList.toggle('active',active);b.textContent=active?'★':'☆';b.title=active?'Retirer des favoris':'Ajouter aux favoris';b.setAttribute('aria-label',b.title);b.setAttribute('aria-pressed',String(active));}
 function toggleFavorite(){if(!currentPlace)return;let a=loadFavorites(),k=placeKey(currentPlace);if(a.some(x=>placeKey(x)===k)){a=a.filter(x=>placeKey(x)!==k);setStatus(`${currentPlace.name} retirée des favoris.`);}else{if(window.meteoCanAddFavorite?.()===false)return;a.unshift({...currentPlace});setStatus(`${currentPlace.name} ajoutée aux favoris.`);}saveFavorites(a);updateFavoriteButton();renderFavorites();}
-function renderFavorites(){const w=$('favoritesList');if(!w)return;const a=loadFavorites();w.innerHTML='';if(!a.length){w.innerHTML='<div class="empty-state">Aucune ville favorite pour le moment.<br>Recherche une ville puis appuie sur ☆.<br><button id="favoriteFindCity" type="button">Rechercher une ville</button></div>'; $('favoriteFindCity').addEventListener('click',()=>{$('searchInput').focus();});return;}a.forEach(p=>{const c=document.createElement('article');c.className='favorite-card';const m=document.createElement('button');m.type='button';m.className='favorite-main';m.innerHTML=`<strong>${p.name}</strong><span>${placeSubtitle(p)}</span>`;m.addEventListener('click',async()=>{await loadWeather(p.latitude,p.longitude,p);switchTab('weather');});const r=document.createElement('button');r.type='button';r.className='favorite-remove';r.textContent='×';r.addEventListener('click',()=>{saveFavorites(loadFavorites().filter(x=>placeKey(x)!==placeKey(p)));renderFavorites();updateFavoriteButton();});c.append(m,r);w.appendChild(c);});}
+function renderFavorites(){
+  const list = $('favoritesList');
+  if (!list) return;
+  const places = loadFavorites();
+  if (!places.length) {
+    list.innerHTML = '<div class="empty-state">Aucune ville favorite pour le moment.<br>Recherche une ville puis appuie sur ☆.<br><button id="favoriteFindCity" type="button">Rechercher une ville</button></div>';
+    $('favoriteFindCity').addEventListener('click', () => $('searchInput').focus());
+    return;
+  }
+  list.replaceChildren(...places.map((place, index) => {
+    const key = placeKey(place);
+    const card = document.createElement('article');
+    card.className = 'favorite-card';
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'favorite-main';
+    const name = document.createElement('strong');
+    name.textContent = place.name;
+    const region = document.createElement('span');
+    region.textContent = placeSubtitle(place);
+    open.append(name, region);
+    open.addEventListener('click', async () => {
+      await loadWeather(place.latitude, place.longitude, place);
+      switchTab('weather');
+    });
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'favorite-remove';
+    remove.textContent = '×';
+    remove.setAttribute('aria-label', 'Retirer ' + place.name + ' des favoris');
+    remove.addEventListener('click', () => {
+      saveFavorites(loadFavorites().filter(saved => placeKey(saved) !== key));
+      renderFavorites();
+      updateFavoriteButton();
+      const remaining = list.querySelectorAll('.favorite-remove');
+      (remaining[Math.min(index, remaining.length - 1)] ?? $('favoriteFindCity')).focus();
+    });
+    card.append(open, remove);
+    return card;
+  }));
+}
 
 async function searchPlaces(q){const u=new URL(GEO_URL);u.searchParams.set('name',q);u.searchParams.set('count','7');u.searchParams.set('language','fr');u.searchParams.set('format','json');const r=await fetch(u);if(!r.ok)throw new Error('Impossible de rechercher cette ville.');return(await r.json()).results||[];}
 function renderSearchResults(results){const box=$('searchResults');box.innerHTML='';if(!results.length){box.hidden=true;setStatus('Aucune ville trouvée.',true);return;}results.forEach(p=>{const b=document.createElement('button');b.type='button';b.className='search-result';b.innerHTML=`<strong>${p.name}</strong><small>${placeSubtitle(p)}</small>`;b.addEventListener('click',async()=>{box.hidden=true;$('searchInput').value='';await loadWeather(p.latitude,p.longitude,p);});box.appendChild(b);});box.hidden=false;setStatus(`${results.length} résultat${results.length>1?'s':''}.`);}
@@ -170,6 +210,7 @@ async function selectInitialCity(){
   try{const r=await searchPlaces('Dijon'),p=r.find(x=>normalizeText(x.country_code)==='fr')||r[0];if(!p)throw new Error('Dijon introuvable.');await loadWeather(p.latitude,p.longitude,p);}catch(err){console.error(err);renderCurrent(null);$('homeHours').textContent='Prévisions locales indisponibles.';$('homeAlert').textContent='Alertes locales indisponibles.';const hourlyNote=$('hourly').querySelector('.f48-note');if(hourlyNote)hourlyNote.textContent='Recherche une ville pour afficher ses prévisions.';setStatus(`Erreur V${APP_VERSION} au démarrage. Recherche une ville pour réessayer.`,true);}}
 
 function switchTab(name){
+  $('mobileMore').open = false;
   document.querySelectorAll('.tabs [data-tab], [data-mobile-tab]').forEach(button=>{
     const active=(button.dataset.tab ?? button.dataset.mobileTab)===name;
     button.classList.toggle('active',active);
@@ -213,6 +254,27 @@ $('notificationBtn').addEventListener('click',requestNotificationPermission);
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;$('installBtn').hidden=false;});
 $('installBtn').addEventListener('click',async()=>{if(!deferredInstallPrompt){setStatus('Dans Chrome : menu ⋮ puis Installer l’application.');return;}deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;$('installBtn').hidden=true;});
 window.addEventListener('appinstalled',()=>{$('installBtn').hidden=true;setStatus('Application installée.');});
+const mobileMore = $('mobileMore');
+const moreSummary = mobileMore.querySelector('summary');
+$('mobileTheme').addEventListener('click', () => {
+  mobileMore.open = false;
+  $('themeMode').focus();
+});
+$('mobileCreator').addEventListener('click', () => {
+  mobileMore.open = false;
+  const access = $('creatorAccess');
+  access.open = true;
+  access.querySelector('summary').focus();
+});
+document.addEventListener('click', event => {
+  if (mobileMore.open && !mobileMore.contains(event.target)) mobileMore.open = false;
+});
+mobileMore.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || !mobileMore.open) return;
+  mobileMore.open = false;
+  moreSummary.focus();
+});
+
 const themeMode=$('themeMode');
 try {
   const savedTheme=localStorage.getItem('meteo.dashboard.theme');
