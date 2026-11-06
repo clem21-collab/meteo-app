@@ -7,7 +7,7 @@ const forecast48 = (() => {
   const offsetFormat = new Intl.DateTimeFormat('fr-FR', {...zone, timeZoneName: 'shortOffset'});
   const number = new Intl.NumberFormat('fr-FR', {maximumFractionDigits: 2});
   const metrics = [
-    ['temperature_2m', 'Température', '°C', '#ffb479'],
+    ['temperature_2m', 'Température', '°C', '#ffcd53'],
     ['rain', 'Pluie', 'mm', '#80d7ff'],
     ['probability', 'Probabilité de précipitations', '%', '#a9cbff'],
     ['wind_speed_10m', 'Vent', 'km/h', '#8fe2c3'],
@@ -84,30 +84,41 @@ const forecast48 = (() => {
     return Number.isFinite(value) ? number.format(value) + ' ' + unit : '—';
   }
 
-  function drawChart(svg, rows, metric, selected) {
+  function drawChart(svg, rows, metric, selected, rainOverlay = false) {
     const [field, label, unit, color] = metric;
     const values = rows.map(row => row[field]).filter(Number.isFinite);
     svg.replaceChildren();
-    svg.setAttribute('aria-label', label);
+    svg.setAttribute('aria-label', rainOverlay ? label + ' et pluie sur 48 heures' : label);
     const add = (tag, attributes, label) => {
       const node = document.createElementNS(svg.namespaceURI, tag);
       Object.entries(attributes).forEach(([key, value]) => node.setAttribute(key, value));
       if (label) node.textContent = label;
       svg.append(node);
     };
-    if (!values.length) {
+    const rainValues = rainOverlay ? rows.map(row => row.rain).filter(Number.isFinite) : [];
+    if (!values.length && !rainValues.length) {
       add('text', {x: 180, y: 66, 'text-anchor': 'middle'}, 'Données indisponibles');
       return;
     }
-    const low = field === 'temperature_2m' ? Math.floor(Math.min(...values)) : 0;
+    const low = field === 'temperature_2m' && values.length ? Math.floor(Math.min(...values)) : 0;
     const high = field === 'probability' ? 100 : Math.max(low + 1, Math.ceil(Math.max(...values)));
     const x = index => rows.length === 1 ? 202 : 54 + index * 296 / (rows.length - 1);
     const y = value => 94 - (value - low) * 74 / (high - low);
-    for (const value of [low, high]) {
+    for (const value of values.length ? [low, high] : []) {
       add('line', {x1: 54, x2: 350, y1: y(value), y2: y(value), class: 'f48-grid'});
       add('text', {x: 49, y: y(value) + 4, 'text-anchor': 'end'}, format(value, unit));
     }
-    add('line', {x1: x(selected), x2: x(selected), y1: 16, y2: 98, class: 'f48-cursor'});
+    if (selected != null) add('line', {x1: x(selected), x2: x(selected), y1: 16, y2: 98, class: 'f48-cursor'});
+    if (rainValues.length) {
+      const peak = Math.max(1, ...rainValues);
+      const width = Math.min(6, 210 / rows.length);
+      rows.forEach((row, index) => {
+        if (!Number.isFinite(row.rain) || row.rain <= 0) return;
+        const height = 53 * row.rain / peak;
+        add('rect', {x: x(index) - width / 2, y: 94 - height, width, height, fill: '#80d7ff', opacity: .78});
+      });
+      add('text', {x: 350, y: 11, 'text-anchor': 'end'}, format(peak, 'mm'));
+    }
     if (field === 'rain' || field === 'snowfall' || field === 'probability') {
       const width = Math.min(18, 208 / rows.length);
       rows.forEach((row, index) => {
@@ -217,9 +228,21 @@ const forecast48 = (() => {
       const ratio = ((event.clientX - bounds.left) * 360 / bounds.width - 54) / 296;
       select(Math.round(Math.max(0, Math.min(1, ratio)) * (rows.length - 1)), true);
     });
-    root.replaceChildren(tabs, timeline, chart, detail, element('p',
+    const summary = document.createElementNS(svg.namespaceURI, 'svg');
+    summary.setAttribute('viewBox', '0 0 360 124');
+    summary.setAttribute('role', 'img');
+    summary.classList.add('f48-overview');
+    drawChart(summary, forecast, metrics[0], null, true);
+    const legend = element('div', '', 'f48-legend');
+    legend.append(
+      element('span', forecast.some(row => Number.isFinite(row.temperature_2m)) ? 'Température (°C)' : 'Température indisponible'),
+      element('span', forecast.some(row => Number.isFinite(row.rain)) ? 'Pluie (mm)' : 'Pluie indisponible')
+    );
+    const details = element('details', '', 'home-card-details');
+    details.append(element('summary', 'Détails heure par heure'), tabs, timeline, chart, detail, element('p',
       'Heure de Paris. Pluie, neige et probabilité sur l’heure qui précède l’heure affichée. ' + source,
       'f48-note'));
+    root.replaceChildren(legend, summary, details);
     dayButtons[0].click();
   }
 
