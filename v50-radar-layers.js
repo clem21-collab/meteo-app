@@ -38,18 +38,23 @@
     const panel=getPanel();if(!panel||document.getElementById('v50LayerSwitcher'))return;
     const box=document.createElement('div');
     box.id='v50LayerSwitcher';box.className='v50-layer-switcher';
-    box.innerHTML=`<button type="button" data-v50-layer="rain" class="active">🌧️ Pluie</button><button type="button" data-v50-layer="snow">❄️ Neige</button><button type="button" data-v50-layer="wind">💨 Vent</button><button type="button" data-v50-layer="temp">🌡️ Température</button><button type="button" data-v50-layer="cloud">Nuages</button>`;
+    box.setAttribute('role','group');box.setAttribute('aria-label','Couches météo');
+    box.innerHTML=`<button type="button" data-v50-layer="rain" class="active" aria-pressed="true">🌧️ Pluie</button><button type="button" data-v50-layer="snow" aria-pressed="false">❄️ Neige</button><button type="button" data-v50-layer="wind" aria-pressed="false">💨 Vent</button><button type="button" data-v50-layer="temp" aria-pressed="false">🌡️ Température</button><button type="button" data-v50-layer="cloud" aria-pressed="false">Nuages</button>`;
     const radarCard=panel.querySelector('.radar-card');
     (radarCard||panel.firstElementChild)?.insertAdjacentElement('beforebegin',box);
     const legend=document.createElement('div');legend.setAttribute('role','status');legend.id='v50LayerLegend';legend.className='v50-layer-legend';legend.textContent='Radar de précipitations en direct.';
-    box.insertAdjacentElement('afterend',legend);
+    (radarCard||box).insertAdjacentElement('afterend',legend);
     box.addEventListener('click',e=>{const b=e.target.closest('[data-v50-layer]');if(!b)return;setMode(b.dataset.v50Layer);});
   }
 
   function setMode(next){
     mode=next;
     localStorage.setItem('meteo-app-v50-map-layer',mode);
-    document.querySelectorAll('#v50LayerSwitcher [data-v50-layer]').forEach(b=>b.classList.toggle('active',b.dataset.v50Layer===mode));
+    document.querySelectorAll('#v50LayerSwitcher [data-v50-layer]').forEach(button=>{
+      const active = button.dataset.v50Layer === mode;
+      button.classList.toggle('active',active);
+      button.setAttribute('aria-pressed',String(active));
+    });
     getPanel().dataset.weatherLayer=mode;
     clearTimeout(refreshTimer);
     const rain=mode==='rain';
