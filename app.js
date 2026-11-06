@@ -66,7 +66,50 @@ function renderCurrent(data, fallback = "Conditions indisponibles"){
   const panel = $("panel-weather");
   panel.dataset.sky = known ? ([2, 3, 45, 48].includes(code) ? "overcast" : "observed") : "unknown";
 }
-function renderDaily(d){const w=$('daily');w.innerHTML='';d.daily?.time?.forEach((day,i)=>{const[icon,label]=weatherInfo(d.daily.weather_code?.[i],1),e=document.createElement('div');e.className='day-row';e.innerHTML=`<div class="day">${fmtDay(day,i)}</div><div class="emoji" aria-hidden="true">${icon}</div><div class="journal-day-condition">${label}</div><div class="rain">💧 ${safeRound(d.daily.precipitation_probability_max?.[i])}%</div><div class="range">${safeRound(d.daily.temperature_2m_min?.[i])}° / <strong>${safeRound(d.daily.temperature_2m_max?.[i])}°</strong></div>`;w.appendChild(e);});}
+function renderDaily(data){
+  const root = $('daily');
+  const daily = data?.daily;
+  if (!daily?.time?.length) {
+    root.textContent = 'Prévisions sur 7 jours indisponibles.';
+    return;
+  }
+  const temperatures = [...(daily.temperature_2m_min ?? []), ...(daily.temperature_2m_max ?? [])].filter(Number.isFinite);
+  const low = Math.min(...temperatures);
+  const scale = Math.max(1, Math.max(...temperatures) - low);
+  const degrees = value => Number.isFinite(value) ? Math.round(value) + '°' : '—';
+  const sunTime = value => value ? fmtHour(value) : '—';
+  root.replaceChildren(...daily.time.map((day, index) => {
+    const code = daily.weather_code?.[index];
+    const [icon, condition] = Object.hasOwn(weatherMap, code) ? weatherInfo(code) : ['', 'Conditions indisponibles'];
+    const min = daily.temperature_2m_min?.[index];
+    const max = daily.temperature_2m_max?.[index];
+    const probability = daily.precipitation_probability_max?.[index];
+    const rain = Number.isFinite(probability) ? Math.round(probability) + ' %' : '—';
+    const details = document.createElement('details');
+    details.className = 'weekly-day';
+    details.innerHTML = '<summary><span class="weekly-label"><strong></strong><small><span aria-hidden="true"></span><span></span></small></span>' +
+      '<span class="weekly-range"><span><span class="sr-only">Mini </span><span></span></span><span class="weekly-track" aria-hidden="true"></span><strong><span class="sr-only">Maxi </span><span></span></strong></span></summary>' +
+      '<dl><dt>Risque de précipitations</dt><dd></dd><dt>Lever du soleil</dt><dd></dd><dt>Coucher du soleil</dt><dd></dd></dl>';
+    const label = details.querySelector('.weekly-label');
+    label.querySelector('strong').textContent = fmtDay(day, index);
+    label.querySelector('small').firstElementChild.textContent = icon ? icon + ' ' : '';
+    label.querySelector('small').lastElementChild.textContent = condition;
+    const range = details.querySelector('.weekly-range');
+    range.firstElementChild.lastElementChild.textContent = degrees(min);
+    range.lastElementChild.lastElementChild.textContent = degrees(max);
+    if (Number.isFinite(min) && Number.isFinite(max) && max >= min) {
+      const track = details.querySelector('.weekly-track');
+      track.style.setProperty('--range-start', (min - low) / scale * 100 + '%');
+      track.style.setProperty('--range-width', (max - min) / scale * 100 + '%');
+      track.classList.add('has-range');
+    }
+    const [rainDetail, sunrise, sunset] = details.querySelectorAll('dd');
+    rainDetail.textContent = rain;
+    sunrise.textContent = sunTime(daily.sunrise?.[index]);
+    sunset.textContent = sunTime(daily.sunset?.[index]);
+    return details;
+  }));
+}
 
 function defaultAlertSettings(){return{rain:true,wind:true,windThreshold:60,snow:true,storm:true};}
 function getAlertSettings(){try{return{...defaultAlertSettings(),...JSON.parse(localStorage.getItem(ALERT_SETTINGS_KEY)||'{}')}}catch{return defaultAlertSettings();}}
@@ -115,7 +158,7 @@ async function maybeNotifyWeatherAlert(){if(!currentPlace||!currentData||!('Noti
 async function requestNotificationPermission(){if(!('Notification'in window)){setStatus('Notifications non prises en charge.',true);return;}if(!window.isSecureContext){setStatus('Les notifications nécessitent HTTPS.',true);return;}if(window.Notification.permission==='denied'){setStatus('Notifications bloquées dans les paramètres du site.',true);return;}if(window.Notification.permission==='default'&&(await window.Notification.requestPermission())!=='granted'){updateNotificationState();return;}await showSystemNotification('🌤️ Météo',{body:`Notifications activées${currentPlace?` pour ${currentPlace.name}`:''}.`,tag:'meteo-test'});setStatus('Notification de test envoyée.');updateNotificationState();}
 
 let weatherLoadRevision=0;
-async function loadWeather(lat,lon,place=null){const revision=++weatherLoadRevision;try{forecast48.load(lat,lon).catch(console.error);setStatus('Chargement de la météo…');renderCurrent(null,'Chargement…');$('homeHours').textContent='Chargement…';$('homeAlert').textContent='Analyse des alertes locales…';currentPlace=place?{name:place.name||'Ma position',admin1:place.admin1||'',country:place.country||'',latitude:Number(lat),longitude:Number(lon)}:{name:'Ma position',admin1:'',country:'Position actuelle',latitude:Number(lat),longitude:Number(lon)};$('placeName').textContent=currentPlace.name;$('journalCity').textContent=currentPlace.name;document.dispatchEvent(new Event('meteo-place-change'));$('placeDetail').textContent=placeSubtitle(currentPlace)||'Position actuelle';const data=await fetchWeather(lat,lon);if(revision!==weatherLoadRevision)return;if(!data?.current?.time)throw new Error('Conditions actuelles indisponibles.');currentData=data;try{if(place?.name&&place.name!=='Ma position')localStorage.setItem('meteo-last-city',JSON.stringify(currentPlace));}catch{}renderHomeHours(data);renderCurrent(currentData);renderDaily(currentData);updateFavoriteButton();renderWeatherAlerts();updateNotificationState();maybeNotifyWeatherAlert();const sunrise=currentData.daily?.sunrise?.[0]?fmtHour(currentData.daily?.sunrise[0]):'--',sunset=currentData.daily?.sunset?.[0]?fmtHour(currentData.daily?.sunset[0]):'--';setStatus(`Lever ${sunrise} • Coucher ${sunset}`);radarLoadedFor=null;if(map){map.setView([Number(lat),Number(lon)],Math.min(map.getZoom(),7));if(marker)marker.setLatLng([Number(lat),Number(lon)]);}}catch(err){if(revision!==weatherLoadRevision)return;console.error(err);renderCurrent(null);$('homeHours').textContent='Prévisions locales indisponibles.';$('homeAlert').textContent='Alertes locales indisponibles.';setStatus(`Erreur V${APP_VERSION} : ${err?.message||'une erreur est survenue'}`,true);}}
+async function loadWeather(lat,lon,place=null){const revision=++weatherLoadRevision;try{forecast48.load(lat,lon).catch(console.error);setStatus('Chargement de la météo…');renderCurrent(null,'Chargement…');$('daily').textContent='Chargement des prévisions…';$('homeHours').textContent='Chargement…';$('homeAlert').textContent='Analyse des alertes locales…';currentPlace=place?{name:place.name||'Ma position',admin1:place.admin1||'',country:place.country||'',latitude:Number(lat),longitude:Number(lon)}:{name:'Ma position',admin1:'',country:'Position actuelle',latitude:Number(lat),longitude:Number(lon)};$('placeName').textContent=currentPlace.name;$('journalCity').textContent=currentPlace.name;document.dispatchEvent(new Event('meteo-place-change'));$('placeDetail').textContent=placeSubtitle(currentPlace)||'Position actuelle';const data=await fetchWeather(lat,lon);if(revision!==weatherLoadRevision)return;if(!data?.current?.time)throw new Error('Conditions actuelles indisponibles.');currentData=data;try{if(place?.name&&place.name!=='Ma position')localStorage.setItem('meteo-last-city',JSON.stringify(currentPlace));}catch{}renderHomeHours(data);renderCurrent(currentData);renderDaily(currentData);updateFavoriteButton();renderWeatherAlerts();updateNotificationState();maybeNotifyWeatherAlert();const sunrise=currentData.daily?.sunrise?.[0]?fmtHour(currentData.daily?.sunrise[0]):'--',sunset=currentData.daily?.sunset?.[0]?fmtHour(currentData.daily?.sunset[0]):'--';setStatus(`Lever ${sunrise} • Coucher ${sunset}`);radarLoadedFor=null;if(map){map.setView([Number(lat),Number(lon)],Math.min(map.getZoom(),7));if(marker)marker.setLatLng([Number(lat),Number(lon)]);}}catch(err){if(revision!==weatherLoadRevision)return;console.error(err);renderCurrent(null);renderDaily(null);$('homeHours').textContent='Prévisions locales indisponibles.';$('homeAlert').textContent='Alertes locales indisponibles.';setStatus(`Erreur V${APP_VERSION} : ${err?.message||'une erreur est survenue'}`,true);}}
 async function selectInitialCity(){
   try{
     const saved=JSON.parse(localStorage.getItem('meteo-last-city')||'null');
