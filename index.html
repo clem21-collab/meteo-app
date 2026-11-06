@@ -12,17 +12,16 @@
   <link rel="preconnect" href="https://geocoding-api.open-meteo.com">
   <link rel="stylesheet" href="style.css?v=3.1">
   <title>Clément Météo</title>
-  <link rel="stylesheet" href="forecast48.css?v=2">
+  <link rel="stylesheet" href="forecast48.css?v=3">
   <link rel="stylesheet" href="dashboard.css?v=2">
-  <link rel="stylesheet" href="journal.css?v=11">
+  <link rel="stylesheet" href="journal.css?v=12">
 </head>
 <body class="weather-clear weather-journal">
   <div id="weatherFx" class="weather-fx" aria-hidden="true"></div>
 
   <main class="app-shell">
     <div class="journal-masthead">
-      <strong>Clément Météo</strong>
-      <span>Le temps près de vous</span>
+      <strong><span class="brand-symbol" aria-hidden="true">⛅</span> Clément <b>Météo</b></strong>
     </div>
     <header class="topbar">
       <div class="place-block">
@@ -75,10 +74,10 @@
     <section id="panel-weather" class="tab-panel active" data-sky="unknown">
       <section class="hero glass-card" aria-labelledby="currentTitle">
         <div>
-          <p id="currentTitle" class="section-label">EN CE MOMENT</p>
+          <p id="currentTitle" class="sr-only">Conditions actuelles</p>
           <h2 id="journalCity" class="journal-city">Dijon</h2>
+          <p id="homeTime" class="home-time"></p>
           <div class="current-weather">
-            <div id="weatherIcon" class="weather-icon" aria-hidden="true"></div>
             <div>
               <div class="temperature-line">
                 <span id="temperature" class="temperature">—</span><span class="degree" id="currentDegrees" hidden>°C</span>
@@ -88,34 +87,65 @@
             </div>
           </div>
         </div>
-
+        <div id="weatherIcon" class="weather-icon" aria-hidden="true"></div>
+        <svg class="home-sky-art" viewBox="0 0 240 170" aria-hidden="true" focusable="false">
+          <defs>
+            <radialGradient id="sunHalo">
+              <stop stop-color="#ffe17b" stop-opacity=".8"/><stop offset="1" stop-color="#ffd262" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="sunDisc" x2=".4" y2="1">
+              <stop stop-color="#fff4af"/><stop offset="1" stop-color="#ffb932"/>
+            </linearGradient>
+            <linearGradient id="cloudBody" x2=".1" y2="1">
+              <stop stop-color="#fff"/><stop offset=".65" stop-color="#d7edff"/><stop offset="1" stop-color="#85bde7"/>
+            </linearGradient>
+          </defs>
+          <circle cx="153" cy="69" r="70" fill="url(#sunHalo)"/>
+          <circle cx="153" cy="69" r="40" fill="url(#sunDisc)" stroke="#fff2a6" stroke-width="2"/>
+          <path class="home-sky-cloud" fill="url(#cloudBody)" d="M40 140c-17 0-23-20-8-29 3-13 16-19 28-16 5-19 29-30 47-16 15-7 33 4 36 18 15-2 28 9 27 22-1 13-11 21-28 21Z"/>
+          <path class="home-sky-cloud" fill="url(#cloudBody)" opacity=".68" d="M173 154c-11 0-13-12-5-17 0-11 15-15 21-9 5-9 18-12 25-1 11-3 21 5 20 13 0 8-7 14-15 14Z"/>
+        </svg>
       </section>
 
       <section class="glass-card home-brief" aria-labelledby="briefTitle">
         <h2 id="briefTitle" class="journal-heading">Aujourd’hui en bref</h2>
         <div class="metrics">
-          <div><span>Pluie récente</span><strong id="precipitation">—</strong></div>
-          <div><span>Vent</span><strong id="wind">—</strong></div>
-          <div><span>Indice UV</span><strong id="uv">—</strong></div>
-          <div><span>Ressenti</span><strong id="feelsLike">—</strong></div>
-          <div><span>Humidité</span><strong id="humidity">—</strong></div>
-          <div><span>Rafales</span><strong id="gust">—</strong></div>
-          <div><span>Pression</span><strong id="pressure">—</strong></div>
+          <div><i aria-hidden="true">♢</i><span>Risque de pluie</span><strong id="homeRainChance">—</strong></div>
+          <div><i aria-hidden="true">≋</i><span>Vent</span><strong id="wind">—</strong></div>
+          <div><i aria-hidden="true">☀</i><span>Indice UV</span><strong id="uv">—</strong></div>
+          <div><i aria-hidden="true">♨</i><span>Ressenti</span><strong id="feelsLike">—</strong></div>
         </div>
+        <details class="home-card-details"><summary>Autres mesures</summary>
+          <dl class="air-readings">
+            <div><dt>Pluie récente</dt><dd id="precipitation">—</dd></div>
+            <div><dt>Humidité</dt><dd id="humidity">—</dd></div>
+            <div><dt>Rafales</dt><dd id="gust">—</dd></div>
+            <div><dt>Pression</dt><dd id="pressure">—</dd></div>
+          </dl>
+        </details>
       </section>
 
       <section class="glass-card home-outlook" aria-labelledby="homeOutlookTitle">
-        <h2 id="homeOutlookTitle" class="journal-heading">Les prochaines heures</h2>
+        <div class="home-card-head">
+          <h2 id="homeOutlookTitle" class="journal-heading">Prochaines heures</h2>
+          <button type="button" data-open-forecast>Voir plus ›</button>
+        </div>
         <div id="homeHours" class="home-hours" tabindex="0" role="region" aria-labelledby="homeOutlookTitle">Chargement…</div>
+        <details class="home-card-details"><summary>Alertes locales</summary>
         <p id="homeAlert" class="muted">Analyse des alertes locales…</p>
         <div class="home-links">
           <button id="homeAlerts" type="button">Alertes locales</button>
           <a href="https://vigilance.meteofrance.fr/">Vigilance officielle en France</a>
         </div>
+        </details>
       </section>
 
       <section class="section journal-radar" aria-labelledby="journalRadarTitle">
-        <h2 id="journalRadarTitle" class="journal-heading">Radar météo</h2>
+        <div class="home-card-head">
+          <h2 id="journalRadarTitle" class="journal-heading">Radar météo</h2>
+          <button id="homeRadar" type="button" aria-label="Ouvrir la carte météo">Carte ›</button>
+        </div>
+        <div class="home-radar-preview">
         <div id="homeRadarLayers" class="home-radar-layers" role="group" aria-label="Ouvrir une couche sur la carte météo">
           <button type="button" data-open-layer="rain">Pluie</button>
           <button type="button" data-open-layer="wind">Vent</button>
@@ -126,10 +156,11 @@
           <div id="journalRadarMap" aria-label="Carte des observations et prévisions de pluie"></div>
           <span id="journalRadarStamp" class="journal-radar-stamp" aria-hidden="true" hidden></span>
         </div>
+        </div>
+        <details class="home-card-details"><summary>Animation et échéances</summary>
         <div class="journal-radar-controls">
           <button id="journalRadarPlay" type="button" disabled>▶ Animer</button>
           <p id="journalRadarStatus" class="muted" role="status">Chargement du radar…</p>
-          <button id="homeRadar" type="button">Carte et couches</button>
         </div>
         <label class="sr-only" for="journalRadarTime">Échéance de la carte pluie</label>
         <input id="journalRadarTime" type="range" min="0" max="0" value="0" step="1" disabled>
@@ -138,18 +169,19 @@
           <button id="journalObservedPhase" type="button" aria-pressed="false" disabled>Dernière observation</button>
           <button id="journalForecastPhase" type="button" aria-pressed="false" disabled>Première prévision</button>
         </div>
+        </details>
       </section>
 
       <section class="section forecast-panel" aria-labelledby="hourlyTitle">
         <div class="section-heading">
-          <h2 id="hourlyTitle" class="journal-heading" tabindex="-1">Prévisions sur 48 heures</h2>
+          <h2 id="hourlyTitle" class="journal-heading" tabindex="-1">48 heures</h2>
           <span id="updatedAt" class="muted"></span>
         </div>
         <div id="hourly" class="f48" aria-label="Prévisions horaires"><p class="f48-note">Chargement des prévisions…</p></div>
       </section>
 
       <section class="section forecast-panel" aria-labelledby="weeklyTitle">
-        <h2 id="weeklyTitle" class="journal-heading">Les 7 prochains jours</h2>
+        <h2 id="weeklyTitle" class="journal-heading">7 jours</h2>
         <div id="daily"><p class="f48-note">Chargement des prévisions…</p></div>
       </section>
 
@@ -300,8 +332,8 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="forecast48.js?v=2"></script>
-  <script src="app.js?v=3.4"></script>
+  <script src="forecast48.js?v=3"></script>
+  <script src="app.js?v=3.4.1"></script>
   <script src="journal.js?v=3"></script>
   <script src="push-client.js?v=2.9"></script>
   <script src="v50-premium-gates.js?v=5.0.3" data-v50-premium-gates></script>

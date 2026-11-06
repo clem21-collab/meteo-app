@@ -93,6 +93,7 @@ function renderCurrent(data, fallback = "Conditions indisponibles"){
   $("currentDegrees").hidden = !Number.isFinite(temperature);
   $("condition").textContent = label;
   $("homeRange").textContent = "Mini " + min + " · Maxi " + max;
+  $("homeTime").textContent = current?.time ? "Aujourd’hui · " + fmtHour(current.time) : "";
   $("feelsLike").textContent = format(current?.apparent_temperature, " °C");
   $("precipitation").textContent = format(current?.precipitation, " mm", 1);
   $("humidity").textContent = format(current?.relative_humidity_2m, " %");
@@ -102,10 +103,12 @@ function renderCurrent(data, fallback = "Conditions indisponibles"){
   const hour = current?.time && data?.hourly?.time?.length
     ? nearestHourlyIndex(data.hourly, current.time) : -1;
   $("uv").textContent = format(data?.hourly?.uv_index?.[hour], "", 1);
+  $("homeRainChance").textContent = format(data?.daily?.precipitation_probability_max?.[day], " %");
   $("updatedAt").textContent = current?.time ? "Mise à jour " + fmtHour(current.time) : "";
   setWeatherScene(code, !isNight);
   const panel = $("panel-weather");
   panel.dataset.sky = known ? ([2, 3, 45, 48].includes(code) ? "overcast" : "observed") : "unknown";
+  panel.dataset.weatherCode = known ? String(code) : "";
 }
 function renderDaily(data){
   const root = $('daily');
@@ -207,6 +210,7 @@ function renderHomeHours(data){
     const heading=document.createElement('strong');
     heading.textContent=fmtHour(time);
     const conditions=document.createElement('span');
+    conditions.className='sr-only';
     const symbol=document.createElement('span');
     symbol.className='home-hour-icon';
     symbol.setAttribute('aria-hidden','true');
@@ -215,6 +219,7 @@ function renderHomeHours(data){
     degrees.textContent=Number.isFinite(temperature)?Math.round(temperature)+' °C':'—';
     conditions.textContent=label;
     const rain=document.createElement('small');
+    rain.className='sr-only';
     rain.textContent=Number.isFinite(chance)?'Risque de pluie '+Math.round(chance)+' %':'Risque de pluie indisponible';
     if(Number.isFinite(chance)){
       const bar=document.createElement('span');
@@ -294,6 +299,8 @@ $('homeRadarLayers').addEventListener('click', event => {
 });
 document.querySelectorAll('[data-open-forecast]').forEach(button => button.addEventListener('click', () => {
   switchTab('weather');
+  const details = $('hourly').querySelector('details');
+  if (details) details.open = true;
   $('hourlyTitle').focus();
   $('hourlyTitle').scrollIntoView({block: 'start'});
 }));

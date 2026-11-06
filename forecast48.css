@@ -41,6 +41,10 @@
 }
 .f48 select { width: 100%; }
 .f48 svg { display: block; width: 100%; margin-top: .5rem; cursor: pointer; }
+.f48 svg.f48-overview { cursor: default; max-height: 185px; }
+.f48-legend { display: flex; justify-content: center; flex-wrap: wrap; gap: .25rem .8rem; font-size: .75rem; }
+.f48-legend span::before { content: ''; display: inline-block; width: .55rem; height: .55rem; margin-inline-end: .3rem; border-radius: 2px; background: #ffcd53; }
+.f48-legend span + span::before { background: #80d7ff; }
 .f48 svg text { fill: #d9e7f5; font-size: 11px; }
 .f48-grid { stroke: #50647a; }
 .f48-cursor { stroke: #c2ddf7; stroke-dasharray: 3 4; }
