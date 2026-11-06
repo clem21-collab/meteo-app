@@ -1,6 +1,5 @@
 // V5.0 finishing layer: branding, display units and radar mode state.
 (function finishV50(){
-  document.title='Météo';
   const eyebrow=document.querySelector('.place-block .eyebrow');if(eyebrow)eyebrow.textContent='CONDITIONS LOCALES';
   injectV50UnitControls();
   patchV50UnitRenders();
@@ -9,8 +8,8 @@
 })();
 
 function v50Units(){const s=readV50Settings();return{temp:s.tempUnit==='f'?'f':'c',wind:s.windUnit==='ms'?'ms':'kmh'};}
-function v50TempValue(v){const n=Number(v);if(!Number.isFinite(n))return NaN;return v50Units().temp==='f'?n*9/5+32:n;}
-function v50WindValue(v){const n=Number(v);if(!Number.isFinite(n))return NaN;return v50Units().wind==='ms'?n/3.6:n;}
+function v50TempValue(v){if(!Number.isFinite(v))return NaN;return v50Units().temp==='f'?v*9/5+32:v;}
+function v50WindValue(v){if(!Number.isFinite(v))return NaN;return v50Units().wind==='ms'?v/3.6:v;}
 function v50TempLabel(v,d=0){const n=v50TempValue(v);return Number.isFinite(n)?`${n.toFixed(d)}°${v50Units().temp==='f'?'F':'C'}`:'--';}
 function v50WindLabel(v,d=0){const n=v50WindValue(v);return Number.isFinite(n)?`${n.toFixed(d)} ${v50Units().wind==='ms'?'m/s':'km/h'}`:'--';}
 
@@ -28,7 +27,7 @@ function applyV50DisplayUnits(){
   const u=v50Units(),d=typeof currentData!=='undefined'?currentData:null;if(!d)return;
   const c=d.current||{};
   const temp=document.getElementById('temperature'),degree=document.querySelector('.temperature-line .degree'),feel=document.getElementById('feelsLike'),wind=document.getElementById('wind'),gust=document.getElementById('gust');
-  if(temp)temp.textContent=Number.isFinite(v50TempValue(c.temperature_2m))?Math.round(v50TempValue(c.temperature_2m)):'--';if(degree)degree.textContent=u.temp==='f'?'°F':'°C';if(feel)feel.textContent=`Ressenti ${Number.isFinite(v50TempValue(c.apparent_temperature))?Math.round(v50TempValue(c.apparent_temperature)):'--'} °${u.temp==='f'?'F':'C'}`;if(wind)wind.textContent=v50WindLabel(c.wind_speed_10m);if(gust)gust.textContent=v50WindLabel(c.wind_gusts_10m);
+  if(temp)temp.textContent=Number.isFinite(v50TempValue(c.temperature_2m))?Math.round(v50TempValue(c.temperature_2m)):'—';if(degree)degree.textContent=u.temp==='f'?'°F':'°C';if(feel)feel.textContent=v50TempLabel(c.apparent_temperature);if(wind)wind.textContent=v50WindLabel(c.wind_speed_10m);if(gust)gust.textContent=v50WindLabel(c.wind_gusts_10m);
   const h=d.hourly;if(h?.time?.length){const now=new Date(d.current?.time||Date.now()).getTime();let start=h.time.findIndex(t=>new Date(t).getTime()>=now);if(start<0)start=0;document.querySelectorAll('#hourly .hour-card').forEach((card,j)=>{const i=start+j,el=card.querySelector('.temp');if(el&&i<h.time.length){const v=v50TempValue(h.temperature_2m?.[i]);el.textContent=`${Number.isFinite(v)?Math.round(v):'--'}°`;}});}
   const daily=d.daily;document.querySelectorAll('#daily .day-row').forEach((row,i)=>{const el=row.querySelector('.range');if(!el)return;const a=v50TempValue(daily?.temperature_2m_min?.[i]),b=v50TempValue(daily?.temperature_2m_max?.[i]);el.textContent=`${Number.isFinite(a)?Math.round(a):'--'}° / ${Number.isFinite(b)?Math.round(b):'--'}°`;});
   setTimeout(applyV50OpenDetailUnits,30);

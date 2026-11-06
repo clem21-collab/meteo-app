@@ -1,13 +1,13 @@
 {
   "id": "/meteo-app/",
-  "name": "Météo",
+  "name": "Clément Météo",
   "short_name": "Météo",
   "description": "Prévisions détaillées, radar, vigilance, alertes, statistiques, air et pollen.",
   "start_url": "./?source=pwa",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f5ecd9",
-  "theme_color": "#234334",
+  "background_color": "#0b2646",
+  "theme_color": "#114478",
   "lang": "fr",
   "icons": [
     {

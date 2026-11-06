@@ -1,20 +1,22 @@
 const V45_VERSION='4.5';
 const V45_ORDER_KEY='meteo-app-home-order-v2';
 const V45_HISTORY_URL='https://historical-forecast-api.open-meteo.com/v1/forecast';
-const V45_DEFAULT_ORDER=['current','radar','outlook','hourly','daily','vigilance','smart','air','brief','chart','history'];
+const V45_DEFAULT_ORDER=['current','summary','outlook','radar','hourly','daily','ambient','vigilance','smart','air','brief','chart','history'];
 let v45HistoryData=null;
 let v45HistoryKey='';
 let v45SelectedHistory=-1;
 let v45RefreshTimer=null;
 
 const V45_BLOCKS={
-  brief:{label:'Aujourd’hui en bref',icon:'📝',get:()=>document.getElementById('v44DailyBrief')},
+  brief:{label:'Bilan météo du jour',icon:'📝',get:()=>document.getElementById('v44DailyBrief')},
+  summary:{label:'Aujourd’hui en bref',icon:'📝',get:()=>document.querySelector('.home-brief')},
+  ambient:{label:'Air & pollen (aperçu)',icon:'🌬️',get:()=>document.querySelector('.home-air')},
   smart:{label:'Pluie à court terme',icon:'🌧️',get:()=>document.getElementById('v41SmartSummary')},
   vigilance:{label:'Vigilance Météo-France',icon:'⚠️',get:()=>document.getElementById('v41VigilanceCard')},
   current:{label:'Météo actuelle',icon:'🌡️',get:()=>document.querySelector('#panel-weather > .hero')},
   outlook:{label:'Résumé des prochaines heures',icon:'🕒',get:()=>document.querySelector('.home-outlook')},
   radar:{label:'Aperçu du radar pluie',icon:'🗺️',get:()=>document.querySelector('.journal-radar')},
-  hourly:{label:'Prochaines heures',icon:'🕐',get:()=>document.getElementById('hourly')?.closest('.section')},
+  hourly:{label:'Prévisions 48 heures',icon:'🕐',get:()=>document.getElementById('hourly')?.closest('.section')},
   chart:{label:'Graphique 24 heures',icon:'📊',get:()=>document.getElementById('v41ChartSection')},
   air:{label:'Qualité de l’air & pollen',icon:'🌬️',get:()=>document.getElementById('v44AirSection')},
   history:{label:'Historique 7 jours',icon:'🗓️',get:()=>document.getElementById('v45HistorySection')},
@@ -65,7 +67,7 @@ function applyV45Order(){
   const panel=document.getElementById('panel-weather');
   if(!panel)return;
   const groups=[
-    {id:'forecast',title:'Prévisions détaillées',description:'48 heures, semaine et pluie à court terme',keys:['hourly','daily','chart','smart']},
+    {id:'forecast',title:'Prévisions détaillées',description:'Graphique sur 24 heures et pluie à court terme',keys:['chart','smart']},
     {id:'air',title:'Air et pollen',description:'Qualité de l’air et pollens autour de vous',keys:['air']},
     {id:'history',title:'Bilans et historique',description:'Résumé du jour et météo des jours passés',keys:['brief','history']}
   ];
