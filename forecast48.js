@@ -108,18 +108,29 @@ const forecast48 = (() => {
       add('text', {x: 49, y: y(value) + 4, 'text-anchor': 'end'}, format(value, unit));
     }
     add('line', {x1: x(selected), x2: x(selected), y1: 16, y2: 98, class: 'f48-cursor'});
-    let path = '';
-    rows.forEach((row, index) => {
-      if (!Number.isFinite(row[field])) return;
-      const point = x(index) + ' ' + y(row[field]);
-      path += (Number.isFinite(rows[index - 1]?.[field]) ? ' L' : ' M') + point;
-    });
-    add('path', {d: path, fill: 'none', stroke: color, 'stroke-width': 2.5, 'stroke-linejoin': 'round'});
-    rows.forEach((row, index) => {
-      if (Number.isFinite(row[field])) add('circle', {
-        cx: x(index), cy: y(row[field]), r: index === selected ? 5 : 2, fill: color
+    if (field === 'rain' || field === 'snowfall' || field === 'probability') {
+      const width = Math.min(18, 208 / rows.length);
+      rows.forEach((row, index) => {
+        const value = row[field];
+        if (!Number.isFinite(value)) return;
+        const height = Math.max(1, y(0) - y(value));
+        add('rect', {x: x(index) - width / 2, y: y(0) - height, width, height,
+          rx: 2, fill: color, opacity: index === selected ? 1 : .72});
       });
-    });
+    } else {
+      let path = '';
+      rows.forEach((row, index) => {
+        if (!Number.isFinite(row[field])) return;
+        const point = x(index) + ' ' + y(row[field]);
+        path += (Number.isFinite(rows[index - 1]?.[field]) ? ' L' : ' M') + point;
+      });
+      add('path', {d: path, fill: 'none', stroke: color, 'stroke-width': 2.5, 'stroke-linejoin': 'round'});
+      rows.forEach((row, index) => {
+        if (Number.isFinite(row[field])) add('circle', {
+          cx: x(index), cy: y(row[field]), r: index === selected ? 5 : 2, fill: color
+        });
+      });
+    }
     const ticks = [...new Set([0, Math.floor((rows.length - 1) / 2), rows.length - 1])];
     ticks.forEach(index => add('text', {
       x: x(index), y: 117, 'text-anchor': index === ticks.at(-1) ? 'end' : 'middle'
@@ -137,8 +148,9 @@ const forecast48 = (() => {
     const timeline = element('div', '', 'f48-timeline');
     const detail = element('div', '', 'f48-detail');
     detail.setAttribute('aria-live', 'polite');
+    const picker = element('label', 'Graphique', 'f48-picker');
     const selector = element('select');
-    selector.setAttribute('aria-label', 'Variable du graphique');
+    picker.append(selector);
     const visibleMetrics = metrics.filter(([field]) =>
       field !== 'snowfall' || forecast.some(row => row.snowfall > 0));
     visibleMetrics.forEach(metric => selector.add(element('option', metric[1])));
@@ -150,7 +162,7 @@ const forecast48 = (() => {
     slider.min = 0;
     slider.setAttribute('aria-label', 'Choisir une heure sur le graphique');
     const chart = element('div', '', 'f48-chart');
-    chart.append(selector, svg, slider);
+    chart.append(picker, svg, slider);
     let rows, cards, selected, hourLabels;
     const updateChart = () => drawChart(svg, rows, visibleMetrics[selector.selectedIndex], selected);
     function select(index, reveal = false) {
@@ -158,7 +170,7 @@ const forecast48 = (() => {
       const row = rows[index];
       const code = row.weather_code;
       const condition = code === null ? 'Conditions indisponibles' : weatherInfo(code, row.is_day ?? undefined)[1];
-      detail.replaceChildren(element('strong', hourLabels[index] + ' · ' + condition));
+      detail.replaceChildren(element('h3', hourLabels[index] + ' · ' + condition));
       const list = element('dl');
       visibleMetrics.forEach(([field, label, unit]) =>
         list.append(element('dt', label), element('dd', format(row[field], unit))));
@@ -179,11 +191,16 @@ const forecast48 = (() => {
       hourLabels = labels.map((label, index) => labels.indexOf(label) === labels.lastIndexOf(label)
         ? label : label + ' ' + offsetFormat.formatToParts(rows[index].time).find(part => part.type === 'timeZoneName').value);
       cards = rows.map((row, index) => {
-        const icon = row.weather_code === null ? '—' : weatherInfo(row.weather_code, row.is_day ?? undefined)[0];
+        const [icon, condition] = row.weather_code === null
+          ? ['—', 'Conditions indisponibles'] : weatherInfo(row.weather_code, row.is_day ?? undefined);
         const card = button('', () => select(index));
-        card.append(element('span', hourLabels[index]), element('span', icon, 'f48-icon'),
+        const symbol = element('span', icon, 'f48-icon');
+        symbol.setAttribute('aria-hidden', 'true');
+        card.append(element('span', hourLabels[index]), symbol,
           element('strong', format(row.temperature_2m, '°C')),
-          element('span', '💧 ' + format(row.probability, '%')));
+          element('span', format(row.probability, '%'), 'f48-probability'));
+        card.setAttribute('aria-label', [hourLabels[index], condition,
+          'Température ' + format(row.temperature_2m, '°C'), 'Risque de précipitations ' + format(row.probability, '%')].join(', '));
         return card;
       });
       timeline.replaceChildren(...cards);
